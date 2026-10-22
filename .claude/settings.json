@@ -1,0 +1,35 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/format-lint.sh",
+            "timeout": 60,
+            "statusMessage": "Formatting and linting in the app container..."
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/comments.sh",
+            "timeout": 30,
+            "statusMessage": "Checking comments..."
+          },
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/readme.sh",
+            "timeout": 30,
+            "statusMessage": "Checking whether README needs an update..."
+          }
+        ]
+      }
+    ]
+  }
+}
