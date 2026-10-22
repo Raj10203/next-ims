@@ -47,111 +47,36 @@ jobs:
             HEAD COMMIT: ${{ github.event.pull_request.head.sha }}
 
             This repo is the Next.js frontend of the IMS app; the API is a separate
-            NestJS repo (nest-ims). You write the release-facing part of this pull
-            request's description, for a product owner and for whoever releases it.
-            Reviewers read the code; you do NOT explain how the code works.
+            NestJS repo (nest-ims).
 
-            ## Gather
-            1. Read CLAUDE.md (env files, how the app talks to the API, services).
-            2. List the changed files: `gh pr diff ${{ github.event.pull_request.number }} --name-only`,
-               then read what you need with
-               `git diff origin/${{ github.event.pull_request.base.ref }}...HEAD -- <path>`.
-               Skip `package-lock.json`.
-            3. The current body, for context only: `gh pr view ${{ github.event.pull_request.number }} --json body --jq .body`.
+            ## Instructions
+            1. Load the `pr-description` skill with the Skill tool (if that fails, Read
+               `.claude/skills/pr-description/SKILL.md`). Follow its Gather steps, rules
+               and template, with `origin/${{ github.event.pull_request.base.ref }}` as the
+               base. Skip its "Local output" section; the Output below replaces it.
+            2. The current body, for context only: `gh pr view ${{ github.event.pull_request.number }} --json body --jq .body`.
 
-            ## Rules for what to declare (check every one against the diff)
-            - Screens: every route added, changed or removed under `app/` (`page.tsx`,
-              `layout.tsx`, `route.ts`, and redirects in `proxy.ts` or `next.config.ts`).
-              One table row per route, with its URL path (route groups in parentheses are
-              not part of the URL; `[id]` is a parameter); routes with the same change
-              share one row. "Change" is New, Changed or Removed.
-              "What users see (UI/UX)": who reaches it and what looks or behaves
-              differently for them (layout, flow, feedback such as loading, empty and
-              error states, phone vs desktop when the PR makes them differ).
-              "Logic changed": what the screen now does differently behind the UI
-              (rules, validation, data it loads or sends, redirects, permissions), in
-              plain words.
-              Keep it a pointer, not a walkthrough: each cell is one short phrase and a
-              row reads in 2 to 3 lines at most. Name only the main change; the reviewer
-              reads the code for the details. Write "No change" in a cell that does not
-              apply.
-            - Backend dependency: every nest-ims endpoint this PR starts calling, stops
-              calling, or calls with a different method, body, query or expected
-              response field. Name the method and path (e.g. `POST /api/auth/email-otp/send`).
-
-            ## Release notes: only what THIS PR needs beyond the standard deploy
-            Every deploy already installs dependencies, builds the app and starts it.
-            Never list those, or generic checks such as "open the app" or "try the new
-            feature". List a step only when this PR causes it:
-            - Configuration: a variable added or changed in `.env.example`,
-              `next.config.ts` or `docker-compose.yml`: name it and the value to set; say
-              when it is optional. A `NEXT_PUBLIC_*` variable is inlined at build time, so
-              say it must be set before the build (a restart is not enough).
-            - Backend first: when the Backend dependency above needs a nest-ims change,
-              say the backend release must go out first. When the app's own URL or a new
-              origin is involved, the backend's `CORS_ORIGINS` and `APP_URL` must match.
-            - Third parties: a new external service, account, key, script or provider
-              (`package.json`, `next.config.ts`, `.env.example`): what must be created or
-              activated, and where its credentials go.
-            - Moved URLs: a removed or renamed route that bookmarks, emails (the
-              invitation link the backend builds from `APP_URL`) or other apps link to.
-            - Business changes: features added, changed or removed and rules that changed
-              (who may do what, limits, what users now see or are blocked from), in plain
-              words. Group small related changes into one bullet.
-            Never invent a step. If unsure, check the files above; leave it out if the diff
-            does not show it.
-
-            ## Format
-            No file, component, hook or library names except where a release step needs
-            one (a variable, a command). No code. Short bullets. Write "None." for an empty
-            section; never drop a section. Exactly this block:
+            ## Output
+            Write to /tmp/pr-block.md (never inside the repo) exactly this, with the
+            skill's template filled in between the two comment lines and the end marker:
 
             <!-- auto-description:start -->
             <!-- Generated for commit <first 7 characters of HEAD COMMIT> by the "PR description" job. Write your own notes outside this block: it is replaced on every push. -->
 
-            ## Summary
-
-            One or two sentences: what this PR delivers and why.
-
-            ## Business changes
-
-            - **New:** / **Changed:** / **Removed:** what changed, for whom.
-
-            ## Screens
-
-            | Route | Change | What users see (UI/UX) | Logic changed |
-            | --- | --- | --- | --- |
-            | /users | New | Admins list and search users; cards on phones, a table from tablets up | Admin only; search and paging run on the API |
-            | /login | Changed | "Verify your email" message with a resend link instead of a generic error | Unverified accounts are told apart from wrong passwords |
-
-            (These rows only show the format. Write "None." instead of the table when no
-            route changed.)
-
-            ## Backend dependency
-
-            - `METHOD /api/path`: what the screen uses it for; whether it is new for this app.
-
-            ## Release notes
-
-            - [ ] **Before deploy** / **After deploy**: one PR-specific step per line, with
-                  the exact variable name or action.
+            <the filled-in template, from "## Summary" to the end of "## Release notes">
 
             <!-- auto-description:end -->
 
-            In "Release notes", write "Nothing beyond the standard deploy." when this PR
-            needs no extra step.
-
-            ## Output
-            Write only the block above, from the start marker to the end marker, to
-            /tmp/pr-block.md (never inside the repo). The next step puts it into the
-            description and keeps the author's text. Do not edit the PR and do not comment.
-            Never change the working tree, index, HEAD or branches. A denied command is
-            never a reason to stop: use an allowed tool and always write the file.
+            The next step puts it into the description and keeps the author's text. Do
+            not edit the PR and do not comment. Never change the working tree, index, HEAD
+            or branches. A denied command is never a reason to stop: use an allowed tool
+            and always write the file.
+          # Skill loads .claude/skills/pr-description (the rules and template live there).
           # Write is only for /tmp/pr-block.md; the PR itself is edited by the next step.
           claude_args: |
             --model claude-opus-5-5
             --max-turns 60
-            --allowedTools "Read,Grep,Glob,Write,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git ls-files:*),Bash(head:*),Bash(tail:*),Bash(wc:*)"
+            --allowedTools "Skill,Read,Grep,Glob,Write,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git ls-files:*),Bash(head:*),Bash(tail:*),Bash(wc:*)"
 
       - name: Show denied tool calls
         if: always() && steps.claude.outputs.execution_file != ''

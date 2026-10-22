@@ -1,80 +1,78 @@
 ---
 name: pr-description
-description: Write a plain-language pull request description and release notes for this repo. Use when the user asks for a PR description, PR body, or release notes, or when opening or updating a PR.
+description: Write a plain-language pull request description and release notes for this repo. Use when the user asks for a PR description, PR body, or release notes, or when opening or updating a PR. The "PR description" job in CI loads it too.
 ---
 
 # PR description
 
-Write for a reviewer or product owner, not a developer. The diff already shows the code, so describe what changes for users, on which screens and on which devices, not how it is built. No file names, component names or library names unless a deploy step needs one.
+Write the release-facing part of a pull request description, for a product owner and for whoever releases it. Reviewers read the code; do not explain how it works.
 
-## Steps
+Two places use this skill: a local session on request, and the "PR description" job in `.github/workflows/claude-code-review.yml`, which follows the steps, rules and template here and writes the result into a bot-owned block of the PR body. Keep the template's headings stable: the review job checks Screens, Backend dependency and Release notes against the diff.
 
-1. Find the change set: `git log master..HEAD --oneline` and `git diff master...HEAD --stat`. Read the route files (`app/**/page.tsx`, `layout.tsx`, `route.ts`), `proxy.ts`, `.env.example`, `next.config.ts`, `docker-compose.yml` and `package.json` to catch new screens, config, and every nest-ims endpoint the app now calls.
-2. Write the title as a conventional commit that names the outcome, for example `feat: login, email verification screen and responsive user list`.
-3. Fill the template below. Delete a section only if it is truly empty, and say "None" for Backend dependency, Breaking changes and Before release so the reader knows it was checked.
+## Gather
+
+The base is `main` locally; in CI it is `origin/<BASE BRANCH>` from the job's prompt.
+
+1. Read CLAUDE.md (env files, how the app talks to the API, services).
+2. List the changes: `git log <base>..HEAD --oneline` and `git diff <base>...HEAD --name-only`, then read what you need with `git diff <base>...HEAD -- <path>`. Skip `package-lock.json`. Always read the route files (`app/**/page.tsx`, `layout.tsx`, `route.ts`), `proxy.ts`, `.env.example`, `next.config.ts`, `docker-compose.yml` and `package.json` when they changed.
+
+## Rules for what to declare (check every one against the diff)
+
+- Screens: every route added, changed or removed under `app/` (`page.tsx`, `layout.tsx`, `route.ts`, and redirects in `proxy.ts` or `next.config.ts`). One table row per route, with its URL path (route groups in parentheses are not part of the URL; `[id]` is a parameter); routes with the same change share one row. "Change" is New, Changed or Removed.
+  - "What users see (UI/UX)": who reaches it and what looks or behaves differently for them (layout, flow, feedback such as loading, empty and error states, phone vs desktop when the PR makes them differ).
+  - "Logic changed": what the screen now does differently behind the UI (rules, validation, data it loads or sends, redirects, permissions), in plain words.
+  - Keep it a pointer, not a walkthrough: each cell is one short phrase and a row reads in 2 to 3 lines at most. Name only the main change; the reviewer reads the code for the details. Write "No change" in a cell that does not apply.
+- Backend dependency: every nest-ims endpoint this PR starts calling, stops calling, or calls with a different method, body, query or expected response field. Name the method and path (e.g. `POST /api/auth/email-otp/send`).
+
+## Release notes: only what THIS PR needs beyond the standard deploy
+
+Every deploy already installs dependencies, builds the app and starts it. Never list those, or generic checks such as "open the app" or "try the new feature". List a step only when this PR causes it:
+
+- Configuration: a variable added or changed in `.env.example`, `next.config.ts` or `docker-compose.yml`: name it and the value to set; say when it is optional. A `NEXT_PUBLIC_*` variable is inlined at build time, so say it must be set before the build (a restart is not enough).
+- Backend first: when the Backend dependency above needs a nest-ims change, say the backend release must go out first. When the app's own URL or a new origin is involved, the backend's `CORS_ORIGINS` and `APP_URL` must match.
+- Third parties: a new external service, account, key, script or provider (`package.json`, `next.config.ts`, `.env.example`): what must be created or activated, and where its credentials go.
+- Moved URLs: a removed or renamed route that bookmarks, emails (the invitation link the backend builds from `APP_URL`) or other apps link to.
+
+Never invent a step. If unsure, check the files above; leave it out if the diff does not show it.
 
 ## Template
+
+No file, component, hook or library names except where a release step needs one (a variable, a command). No code. Short bullets. Write "None." for an empty section; never drop a section.
 
 ```markdown
 ## Summary
 
 One or two sentences: what this PR delivers and why.
 
-## What changes for users
+## Business changes
 
-- Behaviour changes in plain words (who can do what, what they now see, what is now blocked).
-- One bullet per feature or rule change. Say when something differs on phones.
+- **New:** / **Changed:** / **Removed:** what changed, for whom: features added, changed or removed and rules that changed (who may do what, limits, what users now see or are blocked from). Group small related changes into one bullet.
 
 ## Screens
 
 | Route | Change | What users see (UI/UX) | Logic changed |
 | --- | --- | --- | --- |
 | /users | New | Admins list and search users; cards on phones, a table from tablets up | Admin only; search and paging run on the API |
+| /login | Changed | "Verify your email" message with a resend link instead of a generic error | Unverified accounts are told apart from wrong passwords |
 
-One short phrase per cell, 2 to 3 lines per row at most: name the main change and leave the details to the code review. "No change" in a cell that does not apply; "None" if no screen changed.
+(These rows only show the format. Write "None." instead of the table when no route changed.)
 
 ## Backend dependency
 
-- Each nest-ims endpoint this PR starts calling, or calls differently (method and path, plus any field it now relies on), and whether the backend already has it in production.
-- "None" if the app calls the API exactly as before.
-
-## Breaking changes
-
-- URLs that moved or disappeared (bookmarks, links in emails such as the invitation link the backend builds from its `APP_URL`), or behaviour users must adapt to. "None" if there are none.
+- `METHOD /api/path`: what the screen uses it for; whether it is new for this app.
 
 ## Release notes
 
-Short, user-facing bullets, as they would appear in a changelog.
-
-## Before release (deploy checklist)
-
-Ordered steps someone must do for this to work, for example:
-
-- [ ] New or changed environment variables, with the value to set. `NEXT_PUBLIC_*` values are baked in at build time, so they must be set before the build.
-- [ ] Backend first: the nest-ims version with the endpoints above deployed, and its `CORS_ORIGINS` / `APP_URL` pointing at this app.
-- [ ] New third-party services or keys to provision.
-- [ ] Anything to rebuild or restart.
-      "Nothing extra" if the PR merges and works on its own.
-
-## How to verify
-
-2 to 4 steps a reviewer can follow to see it working, including one on a phone-width screen when layout changed.
+- [ ] **Before deploy** / **After deploy**: one PR-specific step per line, with the exact variable name or action.
 ```
 
-## Rules
+In "Release notes", write "Nothing beyond the standard deploy." when this PR needs no extra step.
 
-- Lead with user impact. Mention a technical detail only when someone must act on it (a variable, a backend release, a rebuild).
-- Be specific about numbers that matter to users (limits, timeouts, page sizes).
-- Never invent a step. If unsure whether something is needed before release, check `.env.example`, `next.config.ts` and `CLAUDE.md`.
-- Link issues with `Fixes #N` when they exist.
-- If the PR mixes unrelated features, say so in the Summary and list them separately.
-- To update an open PR: `gh pr edit <n> --title "..." --body-file <file>`.
+## Local output
 
-## Output format
+In CI the job's prompt sets the output instead; skip this section there.
 
-Never create an artifact, file or web page for the result. Print it in the chat as two separate code fences so the user can copy each with the block's copy button:
-
-1. The title in a plain ``` fence.
-2. The description in a ````markdown fence (four backticks), because the description contains its own code spans. Start with `## Summary` and put nothing else inside the fence.
-
-Keep any remarks outside the fences, after them, in one or two lines (for example, items you could not verify). Do not add headings or commentary inside the fences.
+- Title: a conventional commit that names the outcome, for example `feat: login, email verification screen and responsive user list`.
+- Link issues with `Fixes #N` when they exist. If the PR mixes unrelated features, say so in the Summary.
+- Never create an artifact, file or web page for the result. Print it in the chat as two code fences so the user can copy each: the title in a plain ``` fence, then the description in a ````markdown fence (four backticks, because it contains its own code spans), starting with `## Summary`. Keep remarks (for example, items you could not verify) outside the fences, after them, in one or two lines.
+- To update an open PR: `gh pr edit <n> --title "..." --body-file <file>`. On the next push CI adds its own block on top and keeps this text below it under "Author notes".
