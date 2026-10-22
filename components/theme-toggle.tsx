@@ -2,7 +2,7 @@
 
 import { Monitor, Moon, Sun, type LucideIcon } from "lucide-react";
 import { useLayoutEffect, useSyncExternalStore } from "react";
-import { THEME_STORAGE_KEY, type Theme } from "@/lib/theme";
+import { THEME_STORAGE_KEY, themeColors, type Theme } from "@/lib/theme";
 
 const listeners = new Set<() => void>();
 
@@ -15,20 +15,41 @@ function readTheme(): Theme {
   }
 }
 
+// The browser bar's theme-color metas carry media queries, so on their own
+// they follow the OS; an explicit choice overrides both.
+function applyTheme(theme: Theme) {
+  const root = document.documentElement;
+  if (theme === "system") delete root.dataset.theme;
+  else root.dataset.theme = theme;
+
+  document
+    .querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')
+    .forEach((meta) => {
+      const scheme = meta.media.includes("dark") ? "dark" : "light";
+      meta.content = themeColors[theme === "system" ? scheme : theme];
+    });
+}
+
 function setTheme(theme: Theme) {
   try {
     if (theme === "system") localStorage.removeItem(THEME_STORAGE_KEY);
     else localStorage.setItem(THEME_STORAGE_KEY, theme);
   } catch {}
+  applyTheme(theme);
   listeners.forEach((notify) => notify());
 }
 
 function subscribe(notify: () => void) {
+  const onStorage = (event: StorageEvent) => {
+    if (event.key !== null && event.key !== THEME_STORAGE_KEY) return;
+    applyTheme(readTheme());
+    notify();
+  };
   listeners.add(notify);
-  window.addEventListener("storage", notify);
+  window.addEventListener("storage", onStorage);
   return () => {
     listeners.delete(notify);
-    window.removeEventListener("storage", notify);
+    window.removeEventListener("storage", onStorage);
   };
 }
 
@@ -41,13 +62,10 @@ const options: { value: Theme; label: string; icon: LucideIcon }[] = [
 export function ThemeToggle() {
   const theme = useSyncExternalStore(subscribe, readTheme, () => "system");
 
-  // Applies changes from this or another tab, and re-applies after the dev
-  // Strict Mode remount, which strips attributes the inline script set.
-  useLayoutEffect(() => {
-    const root = document.documentElement;
-    if (theme === "system") delete root.dataset.theme;
-    else root.dataset.theme = theme;
-  }, [theme]);
+  // Sets the browser bar and survives the dev Strict Mode remount of <html>.
+  // Reads storage, not `theme`: while hydrating, `theme` is the server
+  // snapshot ("system") and would undo the inline script.
+  useLayoutEffect(() => applyTheme(readTheme()), []);
 
   return (
     <div

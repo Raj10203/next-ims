@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { themeScript } from "@/lib/theme";
+import { themeColors, themeScript } from "@/lib/theme";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -18,11 +18,10 @@ export const metadata: Metadata = {
   description: "Inventory management system: track items, stock and users.",
 };
 
-// Matches --background in globals.css so the phone's browser bar blends in.
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f8fafc" },
-    { media: "(prefers-color-scheme: dark)", color: "#020617" },
+    { media: "(prefers-color-scheme: light)", color: themeColors.light },
+    { media: "(prefers-color-scheme: dark)", color: themeColors.dark },
   ],
 };
 
