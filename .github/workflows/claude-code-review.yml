@@ -63,9 +63,18 @@ jobs:
             - Screens: every route added, changed or removed under `app/` (`page.tsx`,
               `layout.tsx`, `route.ts`, and redirects in `proxy.ts` or `next.config.ts`).
               One table row per route, with its URL path (route groups in parentheses are
-              not part of the URL; `[id]` is a parameter). "Change" is New, Changed or
-              Removed. "What users see" says in plain words who reaches it and what they
-              can do, and how it differs on phones when the PR makes it differ.
+              not part of the URL; `[id]` is a parameter); routes with the same change
+              share one row. "Change" is New, Changed or Removed.
+              "What users see (UI/UX)": who reaches it and what looks or behaves
+              differently for them (layout, flow, feedback such as loading, empty and
+              error states, phone vs desktop when the PR makes them differ).
+              "Logic changed": what the screen now does differently behind the UI
+              (rules, validation, data it loads or sends, redirects, permissions), in
+              plain words.
+              Keep it a pointer, not a walkthrough: each cell is one short phrase and a
+              row reads in 2 to 3 lines at most. Name only the main change; the reviewer
+              reads the code for the details. Write "No change" in a cell that does not
+              apply.
             - Backend dependency: every nest-ims endpoint this PR starts calling, stops
               calling, or calls with a different method, body, query or expected
               response field. Name the method and path (e.g. `POST /api/auth/email-otp/send`).
@@ -110,10 +119,10 @@ jobs:
 
             ## Screens
 
-            | Route | Change | What users see |
-            | --- | --- | --- |
-            | /users | New | Admins list and search users; cards on phones, a table from tablets up |
-            | /login | Changed | Shows "verify your email" instead of a generic error for unverified accounts |
+            | Route | Change | What users see (UI/UX) | Logic changed |
+            | --- | --- | --- | --- |
+            | /users | New | Admins list and search users; cards on phones, a table from tablets up | Admin only; search and paging run on the API |
+            | /login | Changed | "Verify your email" message with a resend link instead of a generic error | Unverified accounts are told apart from wrong passwords |
 
             (These rows only show the format. Write "None." instead of the table when no
             route changed.)
@@ -254,7 +263,8 @@ jobs:
                `NEXT_PUBLIC_*` value needed at build time, backend release first, CORS or
                `APP_URL` change, a moved URL) is Important; routine deploy steps (install,
                build, start) must not be listed there. Other gaps in the description are
-               Minor, never a reason to block the merge.
+               Minor, never a reason to block the merge. The Screens table is short on
+               purpose: flag a wrong or missing row, never a row for lacking detail.
             3. Correctness: logic errors, edge cases, unhandled promise rejections,
                missing loading, empty and error states for API calls, stale or wrongly
                shared cached data (`use cache`, per-user data cached for everyone),

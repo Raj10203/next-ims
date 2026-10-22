@@ -27,11 +27,11 @@ One or two sentences: what this PR delivers and why.
 
 ## Screens
 
-| Route | Change | What users see or can do |
-| --- | --- | --- |
-| /users | New | Admins list and search users; cards on phones, a table from tablets up |
+| Route | Change | What users see (UI/UX) | Logic changed |
+| --- | --- | --- | --- |
+| /users | New | Admins list and search users; cards on phones, a table from tablets up | Admin only; search and paging run on the API |
 
-"None" if no screen changed.
+One short phrase per cell, 2 to 3 lines per row at most: name the main change and leave the details to the code review. "No change" in a cell that does not apply; "None" if no screen changed.
 
 ## Backend dependency
 
