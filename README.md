@@ -48,7 +48,7 @@ The API contract the UI relies on (auth, error shape, status codes, language) is
   - after every edit of a code or CSS file: format and lint inside the container, and hand errors back to Claude;
   - at the end of each prompt: list comments in changed files so needless ones get trimmed;
   - at the end of each prompt: ask for a README update when routes, config, Docker, CI, env or dependencies changed.
-- **`pr-description` skill** (`.claude/skills/pr-description`): the single source for PR description rules and template (summary, business changes, screens, backend dependency, release notes). Use it on request locally; the CI *PR description* job loads it too.
+- **`pr-description` skill** (`.claude/skills/pr-description`): the single source for PR description rules and template (summary, business changes, screens, backend dependency, release notes). Use it on request locally; the CI *PR description* job loads it too. CI uses the base branch's copy of `.claude/` and `CLAUDE.md`, so changes to them apply from the PR after they merge.
 - **GitHub Actions** (`.github/workflows/claude-code-review.yml`), on every non-draft PR:
   1. *PR description*: rewrites a bot-owned block in the PR body (summary, business changes, screens, backend dependency, release notes). Text outside the block is kept.
   2. *Claude review*: posts a review comment with a verdict; the check fails (as a warning, not a merge block) unless it is ✅.

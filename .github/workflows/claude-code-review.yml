@@ -78,13 +78,21 @@ jobs:
             --max-turns 60
             --allowedTools "Skill,Read,Grep,Glob,Write,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git ls-files:*),Bash(head:*),Bash(tail:*),Bash(wc:*)"
 
-      - name: Show denied tool calls
+      # Tool names and paths only (shows whether the skill was loaded or read as a
+      # file); the full transcript stays off.
+      - name: Show tool calls
         if: always() && steps.claude.outputs.execution_file != ''
         env:
           EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
         run: |
+          echo "Used:"
+          jq -r '.[] | select(.type == "assistant") | .message.content[]?
+            | select(.type == "tool_use")
+            | "  \(.name): \(.input.skill // .input.file_path // .input.pattern // .input.command // "")"' \
+            "$EXECUTION_FILE" || true
+          echo "Denied:"
           jq -r '.[] | select(.type == "result") | .permission_denials[]?
-            | "\(.tool_name): \(.tool_input.command // .tool_input.file_path // "")"' \
+            | "  \(.tool_name): \(.tool_input.command // .tool_input.file_path // "")"' \
             "$EXECUTION_FILE" || true
 
       # Swaps the bot's block in the description, keeping the author's text; the
@@ -98,7 +106,7 @@ jobs:
           short="${SHA:0:7}"
           if ! grep -q "Generated for commit $short" /tmp/pr-block.md 2>/dev/null \
             || ! grep -q '<!-- auto-description:end -->' /tmp/pr-block.md; then
-            echo "::error::Claude did not write a description block for $short. See 'Show denied tool calls'."
+            echo "::error::Claude did not write a description block for $short. See 'Show tool calls'."
             exit 1
           fi
           gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json body --jq .body > /tmp/pr-old.md

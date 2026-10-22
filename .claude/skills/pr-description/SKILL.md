@@ -11,7 +11,7 @@ Two places use this skill: a local session on request, and the "PR description" 
 
 ## Gather
 
-The base is `main` locally; in CI it is `origin/<BASE BRANCH>` from the job's prompt.
+The base is `origin/<BASE BRANCH>` from the job's prompt in CI, and `origin/master` locally (run `git fetch origin` first, so it matches what the PR is compared with).
 
 1. Read CLAUDE.md (env files, how the app talks to the API, services).
 2. List the changes: `git log <base>..HEAD --oneline` and `git diff <base>...HEAD --name-only`, then read what you need with `git diff <base>...HEAD -- <path>`. Skip `package-lock.json`. Always read the route files (`app/**/page.tsx`, `layout.tsx`, `route.ts`), `proxy.ts`, `.env.example`, `next.config.ts`, `docker-compose.yml` and `package.json` when they changed.
