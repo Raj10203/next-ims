@@ -1,26 +1,123 @@
 @import "tailwindcss";
 
+/*
+ * Dark applies when data-theme="dark" (set by lib/theme.ts) or when no choice
+ * is stored and the OS is dark. A selector cannot join a media query, so the
+ * dark tokens appear twice below; keep both copies in sync.
+ */
+
+@custom-variant dark {
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme="light"]) *) {
+      @slot;
+    }
+  }
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+  --background: #f8fafc;
+  --surface: #ffffff;
+  --surface-muted: #f1f5f9;
+  --foreground: #0f172a;
+  --muted: #475569;
+  --border: #e2e8f0;
+  --input: #64748b;
+  --primary: #4f46e5;
+  --primary-foreground: #ffffff;
+  --ring: #6366f1;
+  --success: #047857;
+  --warning: #92400e;
+  --danger: #b91c1c;
+  --danger-foreground: #ffffff;
+  --info: #0369a1;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --background: #020617;
+    --surface: #0f172a;
+    --surface-muted: #1e293b;
+    --foreground: #f1f5f9;
+    --muted: #94a3b8;
+    --border: #1e293b;
+    --input: #64748b;
+    --primary: #818cf8;
+    --primary-foreground: #1e1b4b;
+    --ring: #a5b4fc;
+    --success: #34d399;
+    --warning: #fbbf24;
+    --danger: #f87171;
+    --danger-foreground: #450a0a;
+    --info: #38bdf8;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #020617;
+  --surface: #0f172a;
+  --surface-muted: #1e293b;
+  --foreground: #f1f5f9;
+  --muted: #94a3b8;
+  --border: #1e293b;
+  --input: #64748b;
+  --primary: #818cf8;
+  --primary-foreground: #1e1b4b;
+  --ring: #a5b4fc;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --danger: #f87171;
+  --danger-foreground: #450a0a;
+  --info: #38bdf8;
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
   --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-danger-foreground: var(--danger-foreground);
+  --color-info: var(--info);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
-}
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  body {
+    @apply bg-background font-sans text-foreground;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-ring;
+  }
+
+  html:has(dialog:modal) {
+    overflow: hidden;
+  }
+
+  /* Below 16px, iOS Safari zooms the page when a field gets focus. */
+  input,
+  select,
+  textarea {
+    font-size: max(16px, 1em);
+  }
 }

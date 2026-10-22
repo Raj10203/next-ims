@@ -2,7 +2,7 @@
 
 Responsive web UI for the IMS (inventory management system). It is a Next.js 16 app that talks to the [nest-ims](../nest-ims) API over HTTP; it has no database of its own.
 
-Status: project scaffold. Docker development setup, code-quality tooling and PR automation are in place; screens come next.
+Status: project scaffold. Docker development setup, code-quality tooling, PR automation, the theme and the app shell are in place. Module pages are placeholders. Sign-in is not built yet, so the shell shows a placeholder user.
 
 ## 1. Running it (development)
 
@@ -41,7 +41,38 @@ Two URLs are needed because server-side code runs inside the container, where `l
 
 The API contract the UI relies on (auth, error shape, status codes, language) is summarised in `CLAUDE.md`. Invitation emails from the API link to `/set-password?token=...` on this app, so that route must keep its path.
 
-## 3. Code quality and automation
+## 3. Theme and layout
+
+Site staff use the app on phones (including scanning barcodes with the camera), so screens are built for phones first and widened for tablets and desktops.
+
+- **Palette**: slate neutrals with an indigo primary. Status colours (success, warning, danger, info) are kept apart from the primary, so a stock state never looks like a button. All text pairs meet WCAG AA (4.5:1), and input borders meet 3:1, in both modes.
+- **Tokens** live in `app/globals.css` and become Tailwind colours: `background`, `surface`, `surface-muted`, `foreground`, `muted`, `border`, `input`, `primary`, `primary-foreground`, `ring`, `success`, `warning`, `danger`, `danger-foreground`, `info`. Use `bg-surface`, `text-muted`, `bg-success/10` and so on rather than raw palette colours, so a screen works in both modes without `dark:` classes.
+- **Light, dark and system**: the header toggle (`components/theme-toggle.tsx`) stores an explicit choice in `localStorage` (`ims-theme`; nothing stored means follow the OS). An inline script in the root layout applies it as `data-theme` on `<html>` before the first paint, so there is no flash and the page stays statically rendered. The `dark:` variant follows the same rule. The theme is not secret, so `localStorage` is fine here (auth tokens never go there).
+- **Responsive rules**: unprefixed classes are the phone layout; tap targets are at least 44px; inputs are at least 16px so iOS does not zoom on focus; wide tables become cards below `md`; the mobile browser bar takes the background colour through `viewport.themeColor`.
+- **Shared pieces**: `components/status-badge.tsx` (stock and record states), `components/avatar.tsx` (initials, since the API sends `avatarUrl: null` without a photo), `components/drawer.tsx` (side panel), icons from `lucide-react`.
+
+### App shell
+
+Every signed-in screen sits in the `app/(app)` route group, whose layout draws the shell (a sign-in page will live outside the group, without it). The modules and their section tabs are one list in `lib/navigation.ts`; add a module there and both the sidebar and the top bar pick it up.
+
+| Module | Route | Section tabs |
+| --- | --- | --- |
+| Dashboard | `/` | none |
+| Inventory | `/inventory` | Items, Products (`/inventory/products`), Categories (`/inventory/categories`) |
+| Sites | `/sites` | none |
+| People | `/people` | Users, Invitations (`/people/invitations`), Roles (`/people/roles`) |
+| Audit log | `/audit` | none |
+
+`/profile` and `/settings` hang off the account panel.
+
+- **Large screens (`lg`, 1024px and up)**: a fixed left sidebar lists the modules. The top bar shows the current module's name and section tabs on the left, and the theme toggle and avatar on the right.
+- **Phones and tablets**: the top bar holds a menu button (left drawer with the modules), the module name, and the avatar (right drawer with the user's details, profile, settings, theme and sign out). The section tabs move to a strip under the top bar that scrolls sideways when they do not fit.
+- **The avatar opens the same account drawer at every size**, so user actions live in one place.
+- **Drawers are native modal `<dialog>`s**: focus stays inside, Esc closes them and focus returns to the button that opened them. Tapping the backdrop or a link closes them too, and the page behind does not scroll.
+- **The active module and tab are found from the URL** (longest matching path, so `/inventory/products` selects Products, not Items). These parts call `usePathname`, so the layout wraps them in `Suspense`: under Cache Components, a page with an unknown dynamic segment (such as a future `/inventory/[id]`) would otherwise fail to prerender.
+- **Still to do**: hiding modules the user's role cannot use (for example the audit log is for admins), the real user from `GET /api/auth/me`, and sign-out.
+
+## 4. Code quality and automation
 
 - **Prettier + ESLint** (`eslint-config-next` core web vitals and TypeScript rules, `eslint-config-prettier` so they do not fight).
 - **Claude Code hooks** (`.claude/settings.json`):
@@ -55,6 +86,6 @@ The API contract the UI relies on (auth, error shape, status codes, language) is
 
   Both need the repository secret `CLAUDE_CODE_OAUTH_TOKEN`. Docs-only, `.github/`, `.claude/` and lockfile-only changes do not trigger them.
 
-## 4. Production
+## 5. Production
 
 Not set up yet: no production image, no image publishing and no deployment pipeline.
