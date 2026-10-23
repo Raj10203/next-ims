@@ -1,3 +1,5 @@
+import { UserRound } from "lucide-react";
+
 const sizes = { sm: "size-8 text-xs", lg: "size-12 text-base" };
 
 // The API sends avatarUrl: null when there is no photo; initials stand in.
@@ -20,7 +22,7 @@ export function Avatar({
       aria-hidden="true"
       className={`flex shrink-0 items-center justify-center rounded-full bg-primary/15 font-semibold text-primary ${sizes[size]}`}
     >
-      {initials}
+      {initials || <UserRound className="size-1/2" />}
     </span>
   );
 }
