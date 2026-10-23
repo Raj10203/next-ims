@@ -9,14 +9,14 @@ Status: project scaffold. Docker development setup, code-quality tooling, PR aut
 Everything runs in Docker. You need Docker with Compose v2.
 
 1. Start the API: in `../nest-ims`, run `docker compose up -d`. It serves `http://localhost:3001/api`. In its `.env`, set:
-   - `CORS_ORIGINS=http://localhost:3000`, so the browser may call the API from this app.
-   - `APP_URL=http://localhost:3000`, so invitation emails link to this app.
+   - `CORS_ORIGINS=http://localhost:3002`, so the browser may call the API from this app.
+   - `APP_URL=http://localhost:3002`, so invitation emails link to this app.
 2. Here: `cp .env.example .env`, then `docker compose up -d app`.
-3. Open http://localhost:3000. Edits on the host reload the page (Fast Refresh).
+3. Open http://localhost:3002. Edits on the host reload the page (Fast Refresh).
 
 | Command | What it does |
 | --- | --- |
-| `docker compose up -d app` | Installs dependencies and runs `next dev` on port 3000 |
+| `docker compose up -d app` | Installs dependencies and runs `next dev` on http://localhost:3002 (port 3000 inside the container) |
 | `docker compose logs -f app` | Follow the dev server output |
 | `docker compose exec app npm run lint` | ESLint, fails on warnings |
 | `docker compose exec app npm run format` | Prettier, also sorts Tailwind classes |
@@ -42,7 +42,12 @@ Two URLs are needed because server-side code runs inside the container, where `l
 
 The API contract the UI relies on (auth, error shape, status codes, language) is summarised in `CLAUDE.md`. Invitation emails from the API link to `/set-password?token=...` on this app, so that route must keep its path.
 
-All API calls go through `lib/api.ts`, from server code only. Each call passes on the user's `Accept-Language` (the API translates its messages) and `X-Forwarded-For`. The API rate-limits by client IP (login 5 and refresh 10 per minute), and every call reaches it from this server, so **nest-ims must have `TRUST_PROXY` set to count this app as a proxy hop** (plus any load balancer in front of the API). Otherwise all users share one IP and lock each other out. In production, put a reverse proxy in front of this app that appends the client IP to `X-Forwarded-For`; Next.js only fills the header when it is missing, so without one a client could send a fake IP.
+All API calls go through `lib/api.ts`, from server code only. Each call passes on the user's `Accept-Language` (the API translates its messages) and the client IP as `X-Forwarded-For`. The API rate-limits by client IP (login 5 and refresh 10 per minute), and every call reaches it from this server, so without the client IP all users share one IP and lock each other out.
+
+The client IP must be one the client cannot forge. Next.js passes on an incoming `X-Forwarded-For` unchanged and only fills it with the socket address when it is missing, so the raw header is not trusted:
+
+- **`TRUST_PROXY` here** is the number of reverse proxies in front of this app that append to `X-Forwarded-For`. `lib/api.ts` (`clientIp`) takes the entry that many places from the right, the one the outermost proxy appended, and sends only that. Unset or `0` (development) sends nothing, so the API sees this server's IP. In production, put a reverse proxy in front of the app and set this to match.
+- **`TRUST_PROXY` in nest-ims** counts the hops in front of the API: `1` for this app, plus any load balancer between this app and the API. Do not turn it on before this app's `TRUST_PROXY` is set, or the API rate-limits by whatever header reaches it.
 
 **The logo** (`APP_LOGO_URL`) is a path under `public/` or a full URL. The browser loads it directly, not through the Next.js image optimizer, so a URL that only serves this app's domain (such as a restricted Azure Blob URL) still works. Static pages read it at build time, so a new value needs a rebuild. The API will later supply the logo per company.
 
@@ -75,7 +80,7 @@ sequenceDiagram
 - **Tokens never reach browser JavaScript.** They live in `httpOnly`, `SameSite=Lax` cookies (`Secure` in production): `ims_access` expires 30 seconds before its token, `ims_refresh` with its token, and `ims_mfa` holds the code-step challenge.
 - **`proxy.ts`** sends visitors without a session to `/login?next=<path>` (only `/login` and `/set-password` are public). When the access cookie has expired, it refreshes before the page renders and passes the new token to that same render. It only checks cookies; the API still authorizes every call.
 - **Refresh tokens rotate on every use**, so parallel requests (a page plus its prefetches) must not each refresh. Requests carrying the same refresh token share one call, and its result is kept for a minute. This works within one Node process; with several app instances, route each session to one instance.
-- **The shell loads the user** from `GET /api/auth/me` behind a `Suspense` boundary, so the rest of the page is still prerendered. A 401 sends the user to `/login`; if the API is down, the account drawer says so and still offers sign-out.
+- **The shell loads the user** from `GET /api/auth/me` behind a `Suspense` boundary, so the rest of the page is still prerendered. A 401 sends the user to `/login`. Any other error shows in the account drawer, which still offers sign-out: a 4xx with the API's own message (such as rate limiting), otherwise a prompt to reload.
 - **Sign-out** calls `POST /api/auth/logout` (revokes the refresh token) and deletes the cookies.
 - **Errors** from the API are shown as sent (already translated): field errors under their input, others above the form. A refresh the API rejects deletes the cookie and goes to sign-in; if the API cannot be reached, the cookie is kept for the next try.
 

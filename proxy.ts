@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { clientIp } from "@/lib/api";
 import {
   ACCESS_COOKIE,
   REFRESH_COOKIE,
@@ -15,7 +16,7 @@ export async function proxy(request: NextRequest) {
 
   const refreshToken = request.cookies.get(REFRESH_COOKIE)?.value;
   const result = refreshToken
-    ? await refreshSession(refreshToken, request.headers.get("x-forwarded-for"))
+    ? await refreshSession(refreshToken, clientIp(request.headers))
     : "invalid";
 
   if (typeof result === "object") {

@@ -2,7 +2,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, type ApiResult } from "@/lib/api";
 import { ACCESS_COOKIE } from "@/lib/session";
 
 export type ApiUser = {
@@ -18,16 +18,15 @@ export type ApiUser = {
   siteId: number | null;
 };
 
-// Redirects to sign-in when the session is gone; null when the API cannot
-// answer right now, so the caller can show an error instead.
-export const getCurrentUser = cache(async (): Promise<ApiUser | null> => {
+// Redirects to sign-in when the session is gone; any other error is returned
+// so the caller can show it.
+export const getCurrentUser = cache(async (): Promise<ApiResult<ApiUser>> => {
   const token = (await cookies()).get(ACCESS_COOKIE)?.value;
   if (!token) redirect("/login");
 
   const result = await apiFetch<ApiUser>("/auth/me", { token });
-  if (result.ok) return result.data;
-  if (result.error.statusCode === 401) redirect("/login");
-  return null;
+  if (!result.ok && result.error.statusCode === 401) redirect("/login");
+  return result;
 });
 
 export function fullName(user: ApiUser) {

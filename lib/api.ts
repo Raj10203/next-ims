@@ -22,6 +22,21 @@ type RequestOptions = {
 };
 
 const apiUrl = process.env.API_URL ?? "http://localhost:3001/api";
+const trustedProxies = Number(process.env.TRUST_PROXY) || 0;
+
+// Next.js only fills X-Forwarded-For when the request has none, so without a
+// trusted proxy in front the header is whatever the client wrote. With N
+// proxies, the client is the entry the outermost one appended (N from the
+// right); anything left of it is client-supplied.
+export function clientIp(incoming: Pick<Headers, "get">) {
+  if (trustedProxies < 1) return null;
+  const hops =
+    incoming
+      .get("x-forwarded-for")
+      ?.split(",")
+      .map((hop) => hop.trim()) ?? [];
+  return hops.at(-trustedProxies) || null;
+}
 
 export async function apiRequest<T>(
   path: string,
@@ -79,6 +94,6 @@ export async function apiFetch<T>(
   return apiRequest<T>(path, {
     ...options,
     language: incoming.get("accept-language"),
-    forwardedFor: incoming.get("x-forwarded-for"),
+    forwardedFor: clientIp(incoming),
   });
 }

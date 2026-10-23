@@ -14,7 +14,13 @@ const links = [
 const row =
   "flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium";
 
-export function AccountPanel({ user }: { user: ShellUser | null }) {
+export function AccountPanel({
+  user,
+  error,
+}: {
+  user: ShellUser | null;
+  error?: string;
+}) {
   return (
     <div className="space-y-4">
       {user ? (
@@ -31,8 +37,8 @@ export function AccountPanel({ user }: { user: ShellUser | null }) {
           role="alert"
           className="mx-3 rounded-lg bg-danger/10 px-3 py-2.5 text-sm text-danger"
         >
-          Your account details could not be loaded. Reload the page to try
-          again.
+          {error ??
+            "Your account details could not be loaded. Reload the page to try again."}
         </p>
       )}
 

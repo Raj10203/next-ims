@@ -12,12 +12,12 @@ Next.js 16 differs from older versions (`next lint` is gone, `middleware.ts` is 
 
 ## Setup
 
-Copy `.env.example` to `.env`. Start nest-ims first (`docker compose up` in `../nest-ims`, API on host port 3001), and set its `CORS_ORIGINS=http://localhost:3000` and `APP_URL=http://localhost:3000` so the browser may call it and invitation emails link here.
+Copy `.env.example` to `.env`. Start nest-ims first (`docker compose up` in `../nest-ims`, API on host port 3001), and set its `CORS_ORIGINS=http://localhost:3002` and `APP_URL=http://localhost:3002` so the browser may call it and invitation emails link here.
 
 ## Commands
 
 ```bash
-docker compose up -d app          # next dev on http://localhost:3000 (installs dependencies first)
+docker compose up -d app          # next dev on http://localhost:3002 (installs dependencies first)
 docker compose logs -f app
 docker compose exec app sh        # shell in the container
 
@@ -33,7 +33,7 @@ Run these inside the container (`docker compose exec app npm run lint`). Install
 ## Architecture notes
 
 - **Docker** is development only. `docker-compose.yml` runs `next dev` in `node:24-alpine` with the repo bind-mounted. `node_modules` and `.next` are named volumes, not the host folders: Alpine needs its own native binaries (SWC, Tailwind, lightningcss), and nothing root-owned lands on the host. So the host's `node_modules` is only for the editor. After a `package.json` change, `docker compose restart app` installs the new dependencies. To start clean: `docker compose down -v`. There is no production image yet.
-- **Env vars.** `NEXT_PUBLIC_API_URL` is the API as the browser sees it; it is inlined into the bundle at build time, so it is never secret and a change needs a rebuild in production. `API_URL` is the API for server-side code; docker-compose sets it to `http://host.docker.internal:3001/api` because `localhost` inside the container is not the host. Any other variable is server-only: never read it from a Client Component. Add each new variable to `.env.example`.
+- **Env vars.** `NEXT_PUBLIC_API_URL` is the API as the browser sees it; it is inlined into the bundle at build time, so it is never secret and a change needs a rebuild in production. `API_URL` is the API for server-side code; docker-compose sets it to `http://host.docker.internal:3001/api` because `localhost` inside the container is not the host. `TRUST_PROXY` is the number of reverse proxies in front of this app; only then is the client IP passed to the API (`clientIp` in `lib/api.ts`), never the raw incoming `X-Forwarded-For`. Any other variable is server-only: never read it from a Client Component. Add each new variable to `.env.example`.
 - **Folder layout.** `app/` holds routes only (`page.tsx`, `layout.tsx`, `route.ts`, `loading.tsx`, `error.tsx`, plus route-private files in `_components/` folders). Shared UI goes in `components/`, the API client, types and helpers in `lib/`. Import with the `@/` alias (`@/components/...`), never long `../../` chains.
 - **API contract (nest-ims).** Every route is under `/api` (`/api/auth/login`, `/api/auth/refresh`, `/api/auth/me`, ...). Auth is a bearer access token plus a refresh token that rotates on every use, so a refresh response must replace both tokens and two concurrent refreshes must not race. Errors are `{ statusCode, error, message, errors?: [{ path, message }] }`: show `errors[].message` next to the matching form field. 401 means the session is gone (refresh once, then log out). 403 with `Email is not verified` means send the user to email verification, not a generic error. 404 also means "not in your scope" (the API hides records you may not see). 429 is rate limiting. Messages are already translated: send the user's language as `Accept-Language` (`en`, `hi`, `gu`). `avatarUrl: null` means the UI shows its own placeholder. Keep all API calls in `lib/`, typed, never `fetch` scattered in components.
 - **Routes other systems link to.** Invitation emails link to `<APP_URL>/set-password?token=...` (`INVITE_PATH` in nest-ims). Renaming that route breaks every invitation already sent; change both repos together.
