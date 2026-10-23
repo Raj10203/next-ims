@@ -2,7 +2,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { clientIp } from "@/lib/api";
 import {
   ACCESS_COOKIE,
+  PATH_HEADER,
   REFRESH_COOKIE,
+  loginUrl,
   refreshSession,
   sessionCookies,
 } from "@/lib/session";
@@ -10,9 +12,16 @@ import {
 // /set-password is linked from invitation emails (INVITE_PATH in nest-ims).
 const publicPaths = ["/login", "/set-password"];
 
+function next(request: NextRequest) {
+  const headers = new Headers(request.headers);
+  const { pathname, search } = request.nextUrl;
+  headers.set(PATH_HEADER, pathname + search);
+  return NextResponse.next({ request: { headers } });
+}
+
 // An optimistic check on cookies only: the API still authorizes every call.
 export async function proxy(request: NextRequest) {
-  if (request.cookies.has(ACCESS_COOKIE)) return NextResponse.next();
+  if (request.cookies.has(ACCESS_COOKIE)) return next(request);
 
   const refreshToken = request.cookies.get(REFRESH_COOKIE)?.value;
   const result = refreshToken
@@ -23,9 +32,7 @@ export async function proxy(request: NextRequest) {
     const cookies = sessionCookies(result);
     // Also on the request, so this render already sees the new tokens.
     for (const { name, value } of cookies) request.cookies.set(name, value);
-    const response = NextResponse.next({
-      request: { headers: request.headers },
-    });
+    const response = next(request);
     for (const cookie of cookies) response.cookies.set(cookie);
     return response;
   }
@@ -35,16 +42,16 @@ export async function proxy(request: NextRequest) {
     result === "unavailable" ||
     publicPaths.includes(request.nextUrl.pathname)
   ) {
-    const response = NextResponse.next();
+    const response = next(request);
     if (refreshToken && result === "invalid")
       response.cookies.delete(REFRESH_COOKIE);
     return response;
   }
 
-  const login = new URL("/login", request.url);
   const { pathname, search } = request.nextUrl;
-  if (pathname !== "/") login.searchParams.set("next", pathname + search);
-  const response = NextResponse.redirect(login);
+  const response = NextResponse.redirect(
+    new URL(loginUrl(pathname + search), request.url),
+  );
   if (refreshToken) response.cookies.delete(REFRESH_COOKIE);
   return response;
 }

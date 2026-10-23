@@ -212,6 +212,9 @@ jobs:
             ## Context (read first)
             1. CLAUDE.md: the project rules (Server Components by default, mobile-first
                layout, the API contract, where tokens may live, comment style).
+               CLAUDE.md, AGENTS.md and `.claude/` on disk are the BASE BRANCH's copies
+               (the action restores them), not this PR's. Never report them as stale:
+               read the PR's version with `git show HEAD:<path>`.
             2. AGENTS.md: this Next.js version differs from your training data. Before
                flagging or approving any Next.js API, file convention, config option or
                caching behaviour, check it in `node_modules/next/dist/docs/` (Grep it).
@@ -386,10 +389,13 @@ jobs:
               `master`. Fix the `cross-repo check:` line in the description.
             - unavailable or empty: nest-ims could not be checked out; nothing was checked.
 
-            Then one bullet per mismatch: `path/file.ts:line` here and
-            `src/...:line` in nest-ims, what one side sends or expects that the other does
-            not, and which side should change. Write "No mismatches found." when the
-            calls match, or "This PR adds or changes no API calls." when there are none.
+            Then exactly one of these, and nothing else (no list of what was checked,
+            no notes on unrelated backend changes):
+            - Mismatches: one bullet each: `path/file.ts:line` here and `src/...:line` in
+              nest-ims, what one side sends or expects that the other does not, and which
+              side should change.
+            - No mismatches: "No mismatches found: good to merge from the API side."
+            - No API calls added or changed: "This PR adds or changes no API calls."
 
             ### Verdict
 

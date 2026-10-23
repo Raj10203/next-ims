@@ -1,9 +1,9 @@
 import "server-only";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import { apiFetch, type ApiResult } from "@/lib/api";
-import { ACCESS_COOKIE } from "@/lib/session";
+import { ACCESS_COOKIE, PATH_HEADER, loginUrl } from "@/lib/session";
 
 export type ApiUser = {
   id: number;
@@ -18,14 +18,16 @@ export type ApiUser = {
   siteId: number | null;
 };
 
-// Redirects to sign-in when the session is gone; any other error is returned
-// so the caller can show it.
+// Redirects to sign-in, back to this page afterwards, when the session is gone;
+// any other error is returned so the caller can show it.
 export const getCurrentUser = cache(async (): Promise<ApiResult<ApiUser>> => {
   const token = (await cookies()).get(ACCESS_COOKIE)?.value;
-  if (!token) redirect("/login");
-
-  const result = await apiFetch<ApiUser>("/auth/me", { token });
-  if (!result.ok && result.error.statusCode === 401) redirect("/login");
+  const result = token
+    ? await apiFetch<ApiUser>("/auth/me", { token })
+    : undefined;
+  if (!result || (!result.ok && result.error.statusCode === 401)) {
+    redirect(loginUrl((await headers()).get(PATH_HEADER)));
+  }
   return result;
 });
 

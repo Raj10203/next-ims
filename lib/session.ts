@@ -5,6 +5,14 @@ import { apiRequest } from "@/lib/api";
 export const ACCESS_COOKIE = "ims_access";
 export const REFRESH_COOKIE = "ims_refresh";
 export const MFA_COOKIE = "ims_mfa";
+// Set by proxy.ts: Server Components cannot read the URL otherwise.
+export const PATH_HEADER = "x-ims-path";
+
+export function loginUrl(path: string | null) {
+  return path && path !== "/"
+    ? `/login?next=${encodeURIComponent(path)}`
+    : "/login";
+}
 
 export type TokenPair = { accessToken: string; refreshToken: string };
 

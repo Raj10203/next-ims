@@ -46,9 +46,16 @@ function failed(
   };
 }
 
-// Only paths on this site, so ?next= cannot send users elsewhere.
+// Only paths on this site, so ?next= cannot send users elsewhere. Parsing
+// like a browser catches tricks a pattern misses: browsers drop tabs and
+// newlines, so "/\t/evil.example" becomes "//evil.example".
 function safeNext(value: FormDataEntryValue | null) {
-  return typeof value === "string" && /^\/(?![/\\])/.test(value) ? value : "/";
+  if (typeof value !== "string") return "/";
+  try {
+    const url = new URL(value, "http://n");
+    if (url.origin === "http://n") return url.pathname + url.search + url.hash;
+  } catch {}
+  return "/";
 }
 
 export async function login(

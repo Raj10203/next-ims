@@ -80,7 +80,7 @@ sequenceDiagram
 - **Tokens never reach browser JavaScript.** They live in `httpOnly`, `SameSite=Lax` cookies (`Secure` in production): `ims_access` expires 30 seconds before its token, `ims_refresh` with its token, and `ims_mfa` holds the code-step challenge.
 - **`proxy.ts`** sends visitors without a session to `/login?next=<path>` (only `/login` and `/set-password` are public). When the access cookie has expired, it refreshes before the page renders and passes the new token to that same render. It only checks cookies; the API still authorizes every call.
 - **Refresh tokens rotate on every use**, so parallel requests (a page plus its prefetches) must not each refresh. Requests carrying the same refresh token share one call, and its result is kept for a minute. This works within one Node process; with several app instances, route each session to one instance.
-- **The shell loads the user** from `GET /api/auth/me` behind a `Suspense` boundary, so the rest of the page is still prerendered. A 401 sends the user to `/login`. Any other error shows in the account drawer, which still offers sign-out: a 4xx with the API's own message (such as rate limiting), otherwise a prompt to reload.
+- **The shell loads the user** from `GET /api/auth/me` behind a `Suspense` boundary, so the rest of the page is still prerendered. A 401 (the API rejected a token still in its cookie) sends the user to `/login?next=<path>`, like the proxy; `proxy.ts` passes the path in an `x-ims-path` request header, since Server Components cannot read the URL. Any other error shows in the account drawer, which still offers sign-out: a 4xx with the API's own message (such as rate limiting), otherwise a prompt to reload.
 - **Sign-out** calls `POST /api/auth/logout` (revokes the refresh token) and deletes the cookies.
 - **Errors** from the API are shown as sent (already translated): field errors under their input, others above the form. A refresh the API rejects deletes the cookie and goes to sign-in; if the API cannot be reached, the cookie is kept for the next try.
 
@@ -134,7 +134,7 @@ Every signed-in screen sits in the `app/(app)` route group, whose layout draws t
      cross-repo check: feature/login-mfa
      ```
 
-     Without the line it checks `master` and reminds the author to add one; a branch that does not exist falls back to `master` with a note. It is its own section of the review comment and never changes the verdict. Editing the description does not re-run the review; push a commit (or re-run the job) after adding the line.
+     Without the line it checks `master` and reminds the author to add one; a branch that does not exist falls back to `master` with a note. It is its own section of the review comment, lists only mismatches (or one "No mismatches found" line), and never changes the verdict. Editing the description does not re-run the review; push a commit (or re-run the job) after adding the line.
 
   Both need the repository secret `CLAUDE_CODE_OAUTH_TOKEN`. Docs-only, `.github/`, `.claude/` and lockfile-only changes do not trigger them.
 
