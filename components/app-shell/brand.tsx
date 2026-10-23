@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Logo } from "@/components/logo";
 
 export function Brand() {
   return (
@@ -6,12 +7,7 @@ export function Brand() {
       href="/"
       className="flex min-h-11 items-center gap-2 rounded-md font-semibold"
     >
-      <span
-        aria-hidden="true"
-        className="flex size-8 items-center justify-center rounded-md bg-primary text-sm text-primary-foreground"
-      >
-        IM
-      </span>
+      <Logo className="h-8 max-w-32" />
       IMS
     </Link>
   );

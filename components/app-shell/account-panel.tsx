@@ -2,13 +2,9 @@ import { LogOut, Settings, UserRound } from "lucide-react";
 import Link from "next/link";
 import { Avatar } from "@/components/avatar";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { logout } from "@/lib/auth-actions";
 
-export type ShellUser = {
-  name: string;
-  email: string;
-  role: string;
-  site: string;
-};
+export type ShellUser = { name: string; email: string; role: string };
 
 const links = [
   { href: "/profile", label: "My profile", icon: UserRound },
@@ -18,19 +14,33 @@ const links = [
 const row =
   "flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium";
 
-export function AccountPanel({ user }: { user: ShellUser }) {
+export function AccountPanel({
+  user,
+  error,
+}: {
+  user: ShellUser | null;
+  error?: string;
+}) {
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3 px-3">
-        <Avatar name={user.name} size="lg" />
-        <div className="min-w-0">
-          <p className="truncate font-semibold">{user.name}</p>
-          <p className="truncate text-sm text-muted">{user.email}</p>
-          <p className="truncate text-xs text-muted">
-            {user.role} · {user.site}
-          </p>
+      {user ? (
+        <div className="flex items-center gap-3 px-3">
+          <Avatar name={user.name} size="lg" />
+          <div className="min-w-0">
+            <p className="truncate font-semibold">{user.name}</p>
+            <p className="truncate text-sm text-muted">{user.email}</p>
+            <p className="truncate text-xs text-muted">{user.role}</p>
+          </div>
         </div>
-      </div>
+      ) : (
+        <p
+          role="alert"
+          className="mx-3 rounded-lg bg-danger/10 px-3 py-2.5 text-sm text-danger"
+        >
+          {error ??
+            "Your account details could not be loaded. Reload the page to try again."}
+        </p>
+      )}
 
       <ul className="space-y-1 border-t border-border pt-4">
         {links.map(({ href, label, icon: Icon }) => (
@@ -51,17 +61,15 @@ export function AccountPanel({ user }: { user: ShellUser }) {
         <ThemeToggle />
       </div>
 
-      <div className="border-t border-border pt-4">
+      <form action={logout} className="border-t border-border pt-4">
         <button
-          type="button"
-          disabled
-          title="Sign-in is not built yet"
-          className={`${row} text-danger disabled:opacity-50`}
+          type="submit"
+          className={`${row} text-danger transition-colors hover:bg-danger/10`}
         >
           <LogOut aria-hidden="true" className="size-5" />
           Sign out
         </button>
-      </div>
+      </form>
     </div>
   );
 }

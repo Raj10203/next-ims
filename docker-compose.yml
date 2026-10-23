@@ -5,7 +5,7 @@ services:
     working_dir: /app
     command: sh -c "npm install && npm run dev"
     ports:
-      - "3000:3000"
+      - "3002:3000"
     volumes:
       - ./:/app
       # Kept in the container: Alpine needs its own native binaries (SWC, Tailwind,

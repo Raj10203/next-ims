@@ -1,9 +1,9 @@
 import { Menu } from "lucide-react";
 import { Suspense } from "react";
 import {
-  AccountPanel,
-  type ShellUser,
-} from "@/components/app-shell/account-panel";
+  AccountMenu,
+  AccountMenuSkeleton,
+} from "@/components/app-shell/account-menu";
 import { Brand } from "@/components/app-shell/brand";
 import {
   ActiveModuleNav,
@@ -11,17 +11,8 @@ import {
   ModuleTabs,
   ModuleTitle,
 } from "@/components/app-shell/module-nav";
-import { Avatar } from "@/components/avatar";
 import { Drawer } from "@/components/drawer";
 import { ThemeToggle } from "@/components/theme-toggle";
-
-// Placeholder until sign-in exists; it will come from GET /api/auth/me.
-const user: ShellUser = {
-  name: "Demo User",
-  email: "demo@ims.local",
-  role: "Site technician",
-  site: "Headquarters",
-};
 
 const moduleNav = (
   <nav aria-label="Modules">
@@ -72,13 +63,9 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
               <div className="hidden lg:block">
                 <ThemeToggle />
               </div>
-              <Drawer
-                side="right"
-                label="Account"
-                trigger={<Avatar name={user.name} />}
-              >
-                <AccountPanel user={user} />
-              </Drawer>
+              <Suspense fallback={<AccountMenuSkeleton />}>
+                <AccountMenu />
+              </Suspense>
             </div>
           </div>
           <Suspense>

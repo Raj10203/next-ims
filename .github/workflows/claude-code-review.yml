@@ -145,14 +145,54 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Only so the reviewer can read the Next.js docs that ship with the installed
-      # version (node_modules/next/dist/docs/, see AGENTS.md). Nothing is built or run.
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 24
-          cache: npm
+      # Only the Next.js docs of the locked version (node_modules/next/dist/docs/,
+      # see AGENTS.md), about 3s against 20s for a full npm ci. Nothing is built or run.
+      - name: Fetch the Next.js docs
+        run: |
+          version=$(jq -r '.packages["node_modules/next"].version' package-lock.json)
+          tarball=$(npm pack "next@$version" --pack-destination "$RUNNER_TEMP" --silent)
+          mkdir -p node_modules/next
+          tar -xzf "$RUNNER_TEMP/$tarball" -C node_modules/next --strip-components=1 package/dist/docs
 
-      - run: npm ci --ignore-scripts
+      # The nest-ims branch for the cross-repo check: the author's
+      # "cross-repo check: <branch>" line in the PR description (outside the bot
+      # block), else master. Never fails the job; the review reports what it used.
+      - name: Check out nest-ims for the cross-repo check
+        id: crossrepo
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          DEST: ${{ runner.temp }}/nest-ims
+        run: |
+          gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json body --jq .body > /tmp/pr-body.md
+          requested=$(python3 - <<'PY'
+          import re
+          body = open('/tmp/pr-body.md').read()
+          body = re.sub(r'<!-- auto-description:start -->.*?<!-- auto-description:end -->', '', body, flags=re.S)
+          match = re.search(r'^[\s>*_-]*cross?[- ]?repo check[\s*_]*:[\s*_]*[\[`<]*([A-Za-z0-9._/-]+)', body, re.I | re.M)
+          print(match.group(1) if match else '')
+          PY
+          )
+          url=https://github.com/Raj10203/nest-ims.git
+          if [ -z "$requested" ]; then
+            branch=master; source=not-given
+          elif git ls-remote --exit-code "$url" "refs/heads/$requested" >/dev/null; then
+            branch=$requested; source=named
+          else
+            branch=master; source=missing
+          fi
+          if git clone --quiet --no-tags --filter=blob:none "$url" "$DEST" && git -C "$DEST" checkout --quiet "$branch"; then
+            :
+          else
+            source=unavailable
+          fi
+          echo "Cross-repo check: nest-ims $branch ($source, requested: ${requested:-none})"
+          {
+            echo "branch=$branch"
+            echo "source=$source"
+            echo "requested=$requested"
+          } >> "$GITHUB_OUTPUT"
 
       - uses: anthropics/claude-code-action@v1
         id: claude
@@ -172,6 +212,9 @@ jobs:
             ## Context (read first)
             1. CLAUDE.md: the project rules (Server Components by default, mobile-first
                layout, the API contract, where tokens may live, comment style).
+               CLAUDE.md, AGENTS.md and `.claude/` on disk are the BASE BRANCH's copies
+               (the action restores them), not this PR's. Never report them as stale:
+               read the PR's version with `git show HEAD:<path>`.
             2. AGENTS.md: this Next.js version differs from your training data. Before
                flagging or approving any Next.js API, file convention, config option or
                caching behaviour, check it in `node_modules/next/dist/docs/` (Grep it).
@@ -190,9 +233,8 @@ jobs:
             1. Get the diff with `gh pr diff ${{ github.event.pull_request.number }}`. Use
                `git diff`, `git log` and `git show` against `origin/${{ github.event.pull_request.base.ref }}`
                and read each changed file around the change before commenting on it.
-            2. Intent: does the code match the description? Check its "Screens",
-               "Backend dependency" and "Release notes" sections against the diff in both
-               directions. A missing PR-specific release step (env variable, a
+            2. Intent: does the code match the description? Check its "Screens" and
+               "Release notes" sections against the diff in both directions. A missing PR-specific release step (env variable, a
                `NEXT_PUBLIC_*` value needed at build time, backend release first, CORS or
                `APP_URL` change, a moved URL) is Important; routine deploy steps (install,
                build, start) must not be listed there. Other gaps in the description are
@@ -228,13 +270,53 @@ jobs:
                prop, hook, API helper, type and route, find ALL its usages with Grep
                (including files the PR does not touch) and read each caller. A caller
                this PR breaks is this PR's issue; name the caller's `path:line` in the
-               finding. Name every new or changed backend call in "Merge notes" (it is
-               not a finding by itself).
+               finding. Whether the backend supports a call is the cross-repo check's
+               job below, not a finding here.
             9. Tests: if the repo has a test setup, new non-trivial logic (data mapping,
                validation, auth handling) without a test.
             Do not flag formatting or lint issues (Prettier and ESLint cover them), or
             problems in code the PR does not touch, unless this PR's change breaks it
             (one line at most otherwise, if serious).
+
+            ## Cross-repo check (nest-ims)
+            NEST-IMS CHECKOUT: ${{ runner.temp }}/nest-ims
+            NEST-IMS BRANCH: ${{ steps.crossrepo.outputs.branch }}
+            BRANCH SOURCE: ${{ steps.crossrepo.outputs.source }}
+            REQUESTED BRANCH: ${{ steps.crossrepo.outputs.requested }}
+
+            BRANCH SOURCE is `named` (the author's `cross-repo check: <branch>` line
+            names a branch that exists), `not-given` (no such line, so master),
+            `missing` (the named branch is not in nest-ims, so master), or `unavailable`
+            or empty (the checkout failed: skip the check and say so). The checkout is
+            read-only, outside this repo, and already on NEST-IMS BRANCH. Check that
+            branch's code only: never look at nest-ims pull requests (one feature may
+            span several of them).
+
+            Go straight to these places instead of searching:
+            - next-ims: every API call goes through `apiFetch` or `apiRequest`
+              (`lib/api.ts`); Grep the diff for them. Paths are relative to `/api`.
+            - nest-ims: routes in `src/modules/<module>/*.controller.ts` (global prefix
+              `/api`), request bodies and queries in `src/modules/<module>/dto/*.dto.ts`
+              (Zod), response fields in what the controller returns (often an entity in
+              `src/entities/`), access in the decorators (`@Public()`,
+              `@AllowUnverifiedEmail()`, permissions) applied by `JwtAuthGuard`.
+
+            For every API call this PR adds or changes (method, path, body, query,
+            response fields it reads, status codes it handles), find the matching route
+            in nest-ims and compare both ways:
+            - Frontend to backend: the route exists with that method and path; every
+              field the UI sends is accepted with that name and type; the UI sends every
+              field the API requires and meets its validation (lengths, formats, enums).
+            - Backend to frontend: every response field the UI reads exists with that
+              name, type and nullability; the status codes and error cases the UI
+              handles are ones the API returns; the route's guards (auth, permissions,
+              unverified email allowed or not) match who the screen is for.
+            - When NEST-IMS BRANCH is not master, also read its changes
+              (`git -C <checkout> diff origin/master...HEAD`) and name any change to a
+              route the UI already calls that this PR does not follow.
+
+            This check is a reminder for the PR author, never a finding: it does not go
+            under Issues and never changes Risk or the Verdict.
 
             ## Calibration (most important)
             A clean PR is a normal, expected result. Do not search for something to say:
@@ -296,6 +378,25 @@ jobs:
             vars to set before the build, backend release to ship first, CORS or
             `APP_URL` to update). Write "Nothing extra." if there is none.
 
+            ### Cross-repo check
+
+            First line, by BRANCH SOURCE:
+            - named: Checked against nest-ims `<branch>`.
+            - not-given: Checked against nest-ims `master`: the description has no
+              `cross-repo check: <branch>` line. If the backend work is on a branch, add
+              that line to the description so the next run checks it.
+            - missing: Branch `<REQUESTED BRANCH>` is not in nest-ims, so checked against
+              `master`. Fix the `cross-repo check:` line in the description.
+            - unavailable or empty: nest-ims could not be checked out; nothing was checked.
+
+            Then exactly one of these, and nothing else (no list of what was checked,
+            no notes on unrelated backend changes):
+            - Mismatches: one bullet each: `path/file.ts:line` here and `src/...:line` in
+              nest-ims, what one side sends or expects that the other does not, and which
+              side should change.
+            - No mismatches: "No mismatches found: good to merge from the API side."
+            - No API calls added or changed: "This PR adds or changes no API calls."
+
             ### Verdict
 
             Exactly one of these three lines (copy it as written), followed by 1 to 2
@@ -309,12 +410,15 @@ jobs:
             Important or Critical finding to get a ✅, and never invent one.
 
             Rules: most severe first. No praise, no summary of what the PR does, no vague
-            findings like "improve error handling". Always give a verdict.
+            findings like "improve error handling". Always give a verdict. The Cross-repo
+            check section never counts toward the Issues, Risk or Verdict.
           # Write is only for /tmp/review.md; the prompt forbids writing in the repo.
+          # --add-dir lets Read and Grep reach the nest-ims checkout.
           claude_args: |
             --model claude-opus-5-5
             --max-turns 100
-            --allowedTools "Read,Grep,Glob,Write,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git merge-base:*),Bash(git ls-files:*),Bash(head:*),Bash(tail:*),Bash(wc:*)"
+            --add-dir ${{ runner.temp }}/nest-ims
+            --allowedTools "Read,Grep,Glob,Write,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git merge-base:*),Bash(git ls-files:*),Bash(git -C ${{ runner.temp }}/nest-ims diff:*),Bash(git -C ${{ runner.temp }}/nest-ims log:*),Bash(git -C ${{ runner.temp }}/nest-ims show:*),Bash(head:*),Bash(tail:*),Bash(wc:*)"
 
       # The full transcript stays off (public repo: it can contain secrets); the
       # denied commands alone explain a review that stopped early.
