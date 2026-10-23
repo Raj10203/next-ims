@@ -124,10 +124,17 @@ Every signed-in screen sits in the `app/(app)` route group, whose layout draws t
   - after every edit of a code or CSS file: format and lint inside the container, and hand errors back to Claude;
   - at the end of each prompt: list comments in changed files so needless ones get trimmed;
   - at the end of each prompt: ask for a README update when routes, config, Docker, CI, env or dependencies changed.
-- **`pr-description` skill** (`.claude/skills/pr-description`): the single source for PR description rules and template (summary, business changes, screens, backend dependency, release notes). Use it on request locally; the CI *PR description* job loads it too. CI uses the base branch's copy of `.claude/` and `CLAUDE.md`, so changes to them apply from the PR after they merge.
+- **`pr-description` skill** (`.claude/skills/pr-description`): the single source for PR description rules and template (summary, business changes, screens, cross-repo check, release notes). Use it on request locally; the CI *PR description* job loads it too. CI uses the base branch's copy of `.claude/` and `CLAUDE.md`, so changes to them apply from the PR after they merge.
 - **GitHub Actions** (`.github/workflows/claude-code-review.yml`), on every non-draft PR:
-  1. *PR description*: rewrites a bot-owned block in the PR body (summary, business changes, screens, backend dependency, release notes). Text outside the block is kept.
+  1. *PR description*: rewrites a bot-owned block in the PR body (summary, business changes, screens, cross-repo check, release notes). Text outside the block is kept.
   2. *Claude review*: posts a review comment with a verdict; the check fails (as a warning, not a merge block) unless it is ✅.
+  3. *Cross-repo check*, part of the review: clones nest-ims (public, so no token) and compares every API call the PR adds or changes with the API, both ways: routes, request fields and validation the API expects, response fields and status codes the UI reads, and guards. It reads that branch's code, never nest-ims pull requests, since one feature can span several backend PRs. Which nest-ims branch is set by a line the author writes in the PR description, outside the bot block:
+
+     ```text
+     cross-repo check: feature/login-mfa
+     ```
+
+     Without the line it checks `master` and reminds the author to add one; a branch that does not exist falls back to `master` with a note. It is its own section of the review comment and never changes the verdict. Editing the description does not re-run the review; push a commit (or re-run the job) after adding the line.
 
   Both need the repository secret `CLAUDE_CODE_OAUTH_TOKEN`. Docs-only, `.github/`, `.claude/` and lockfile-only changes do not trigger them.
 
