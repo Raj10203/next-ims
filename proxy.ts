@@ -1,16 +1,17 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { clientIp } from "@/lib/api";
+import { loginUrl } from "@/lib/paths";
 import {
   ACCESS_COOKIE,
   PATH_HEADER,
   REFRESH_COOKIE,
-  loginUrl,
   refreshSession,
   sessionCookies,
 } from "@/lib/session";
 
-// /set-password is linked from invitation emails (INVITE_PATH in nest-ims).
-const publicPaths = ["/login", "/set-password"];
+// /set-password is linked from invitation and password reset emails
+// (INVITE_PATH in nest-ims).
+const publicPaths = ["/login", "/forgot-password", "/set-password"];
 
 function next(request: NextRequest) {
   const headers = new Headers(request.headers);
@@ -38,9 +39,12 @@ export async function proxy(request: NextRequest) {
   }
 
   // API down: keep the refresh cookie so the next request can try again.
+  // app/api answers JSON (401 without a session), never a redirect.
+  const { pathname, search } = request.nextUrl;
   if (
     result === "unavailable" ||
-    publicPaths.includes(request.nextUrl.pathname)
+    publicPaths.includes(pathname) ||
+    pathname.startsWith("/api/")
   ) {
     const response = next(request);
     if (refreshToken && result === "invalid")
@@ -48,7 +52,6 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
-  const { pathname, search } = request.nextUrl;
   const response = NextResponse.redirect(
     new URL(loginUrl(pathname + search), request.url),
   );

@@ -2,7 +2,7 @@
 
 Responsive web UI for the IMS (inventory management system). It is a Next.js 16 app that talks to the [nest-ims](../nest-ims) API over HTTP; it has no database of its own.
 
-Status: project scaffold. Docker development setup, code-quality tooling, PR automation, the theme, the app shell and sign-in are in place. Module pages are placeholders.
+Status: project scaffold. Docker development setup, code-quality tooling, PR automation, the theme, the app shell and the account flows (sign-in with MFA, set password from an invitation or reset link, forgot password, email verification, MFA on/off on the profile) are in place. Module pages are placeholders.
 
 ## 1. Running it (development)
 
@@ -40,9 +40,9 @@ Everything runs in Docker. You need Docker with Compose v2.
 
 Two URLs are needed because server-side code runs inside the container, where `localhost` is the container itself; `host.docker.internal` reaches the API published on the host. `NEXT_PUBLIC_*` values are baked into the browser bundle at build time, so they must never hold secrets and a change needs a rebuild.
 
-The API contract the UI relies on (auth, error shape, status codes, language) is summarised in `CLAUDE.md`. Invitation emails from the API link to `/set-password?token=...` on this app, so that route must keep its path.
+The API contract the UI relies on (auth, error shape, status codes, language) is summarised in `CLAUDE.md`. Invitation and password reset emails from the API link to `/set-password?token=...` on this app, so that route must keep its path.
 
-All API calls go through `lib/api.ts`, from server code only. Each call passes on the user's `Accept-Language` (the API translates its messages) and the client IP as `X-Forwarded-For`. The API rate-limits by client IP (login 5 and refresh 10 per minute), and every call reaches it from this server, so without the client IP all users share one IP and lock each other out.
+All calls to nest-ims go through `lib/api.ts`, from server code only. The browser never calls nest-ims itself: forms send JSON to this app's Route Handlers in `app/api` (see "Auth endpoints" below), which call nest-ims from the server. Each call passes on the user's `Accept-Language` (the API translates its messages) and the client IP as `X-Forwarded-For`. The API rate-limits by client IP (login 5 and refresh 10 per minute), and every call reaches it from this server, so without the client IP all users share one IP and lock each other out.
 
 The client IP must be one the client cannot forge. Next.js passes on an incoming `X-Forwarded-For` unchanged and only fills it with the socket address when it is missing, so the raw header is not trusted:
 
@@ -60,16 +60,16 @@ sequenceDiagram
     actor User
     participant App as next-ims (server)
     participant API as nest-ims
-    User->>App: /login: email and password (Server Function)
+    User->>App: POST /api/auth/login { email, password } (JSON, Route Handler)
     App->>API: POST /api/auth/login
     alt MFA on
         API-->>App: { mfaRequired, challengeToken }
-        App-->>User: code step (challenge token in an httpOnly cookie)
-        User->>App: 6-digit code from the email
-        App->>API: POST /api/auth/login/mfa
+        App-->>User: { mfaRequired, message } (challenge token in an httpOnly cookie)
+        User->>App: POST /api/auth/login/mfa { otp }
+        App->>API: POST /api/auth/login/mfa { challengeToken, otp }
     end
     API-->>App: { user, accessToken, refreshToken }
-    App-->>User: httpOnly cookies, redirect to ?next= or /
+    App-->>User: { user }, tokens as httpOnly cookies; the page goes to ?next= or /
     Note over User,App: later, the access cookie has expired
     User->>App: any page
     App->>API: POST /api/auth/refresh (in proxy.ts)
@@ -78,11 +78,16 @@ sequenceDiagram
 ```
 
 - **Tokens never reach browser JavaScript.** They live in `httpOnly`, `SameSite=Lax` cookies (`Secure` in production): `ims_access` expires 30 seconds before its token, `ims_refresh` with its token, and `ims_mfa` holds the code-step challenge.
-- **`proxy.ts`** sends visitors without a session to `/login?next=<path>` (only `/login` and `/set-password` are public). When the access cookie has expired, it refreshes before the page renders and passes the new token to that same render. It only checks cookies; the API still authorizes every call.
+- **`proxy.ts`** sends visitors without a session to `/login?next=<path>` (only `/login`, `/forgot-password` and `/set-password` are public). When the access cookie has expired, it refreshes before the page renders and passes the new token to that same render. It only checks cookies; the API still authorizes every call.
 - **Refresh tokens rotate on every use**, so parallel requests (a page plus its prefetches) must not each refresh. Requests carrying the same refresh token share one call, and its result is kept for a minute. This works within one Node process; with several app instances, route each session to one instance.
 - **The shell loads the user** from `GET /api/auth/me` behind a `Suspense` boundary, so the rest of the page is still prerendered. A 401 (the API rejected a token still in its cookie) sends the user to `/login?next=<path>`, like the proxy; `proxy.ts` passes the path in an `x-ims-path` request header, since Server Components cannot read the URL. Any other error shows in the account drawer, which still offers sign-out: a 4xx with the API's own message (such as rate limiting), otherwise a prompt to reload.
+- **Auth endpoints** (`app/api`, built with `lib/route-handler.ts`) mirror the nest-ims routes one to one: same path, JSON body, status codes and error shape `{ statusCode, error, message, errors? }`, translated for the request's language. They exist only to keep tokens in httpOnly cookies: login and the MFA step answer `{ user }` and set `ims_access` and `ims_refresh`; the MFA challenge token stays in `ims_mfa`; no token is ever in a body. The rest pass the call through with the session: `POST /api/auth/login/mfa { otp }`, `/api/auth/logout`, `/api/auth/forgot-password`, `/api/auth/email-otp/send`, `/api/auth/email-otp/verify`, `PUT /api/auth/me/mfa` and `POST /api/invitations/accept`. Client Components call them through `callApi` (`lib/client-api.ts`) and `useFormSubmit` (`lib/use-form-submit.ts`). Server Actions would add the same-origin check on their own, so these handlers do it themselves: a request whose `Origin` is not this host gets 403, and a body that is not JSON 415. `proxy.ts` refreshes an expired session for them too, but never redirects `/api/*`: without a session they answer 401 JSON. Forms need JavaScript.
 - **Sign-out** calls `POST /api/auth/logout` (revokes the refresh token) and deletes the cookies.
-- **Errors** from the API are shown as sent (already translated): field errors under their input, others above the form. A refresh the API rejects deletes the cookie and goes to sign-in; if the API cannot be reached, the cookie is kept for the next try.
+- **Email verification.** The API answers 403 to almost every call while `emailVerifiedAt` is null (after an admin changed the email, for instance). So sign-in sends such a user to `/verify-email?next=<path>` instead of `next`, and the shell's user loader (`getCurrentUser` in `lib/auth.ts`) does the same on any page. There the user asks for a code (`POST /api/auth/email-otp/send`, never on page load) and enters it (`/email-otp/verify`), then continues to `next`. A 429 on send is the resend cooldown, so the form moves to the code step anyway. `/verify-email` itself uses `getSignedInUser`, which skips that redirect.
+- **Set password** (`/set-password?token=`) serves both the invitation and the password reset link: `POST /api/invitations/accept { token, password }`. The password rules show as a checklist while typing (a guide; the API decides, and also refuses the user's own name). The page sets `referrer: no-referrer` so the token is not sent to other hosts, such as a logo on Azure Blob. The API then signs out every session of that account, so this browser's cookies are cleared too, and the page links to sign-in.
+- **Forgot password** (`/forgot-password`, linked from sign-in): `POST /api/auth/forgot-password { email }`. The API gives the same answer whether or not the account exists, and emails a 60-minute link to `/set-password` (or the invitation again, to a user who never set a password).
+- **MFA on/off** is on `/profile`: `PUT /api/auth/me/mfa { enabled, password }`.
+- **Errors** from the API are shown as sent (already translated): the first error of each field under its input, others above the form (`formError` in `lib/api-result.ts`). A refresh the API rejects deletes the cookie and goes to sign-in; if the API cannot be reached, the cookie is kept for the next try.
 
 ## 3. Theme and layout
 
@@ -106,7 +111,7 @@ Every signed-in screen sits in the `app/(app)` route group, whose layout draws t
 | People | `/people` | Users, Invitations (`/people/invitations`), Roles (`/people/roles`) |
 | Audit log | `/audit` | none |
 
-`/login` is outside the group (route group `app/(auth)`), with only the logo, the form and the theme toggle.
+The account pages are outside the group, in route group `app/(auth)`, with only the logo, the form and the theme toggle: `/login`, `/forgot-password`, `/set-password` and `/verify-email` (`components/auth-card.tsx`). Their form parts are shared in `components/form.tsx` (input and button classes, messages, the 6-digit code input) and `components/password-input.tsx` (show/hide toggle).
 
 `/profile` and `/settings` hang off the account panel.
 
@@ -115,7 +120,7 @@ Every signed-in screen sits in the `app/(app)` route group, whose layout draws t
 - **The avatar opens the same account drawer at every size**, so user actions live in one place.
 - **Drawers are native modal `<dialog>`s**: focus stays inside, Esc closes them and focus returns to the button that opened them. Tapping the backdrop or a link closes them too, and the page behind does not scroll.
 - **The active module and tab are found from the URL** (longest matching path, so `/inventory/products` selects Products, not Items). These parts call `usePathname`, so the layout wraps them in `Suspense`: under Cache Components, a page with an unknown dynamic segment (such as a future `/inventory/[id]`) would otherwise fail to prerender.
-- **Still to do**: hiding modules the user's role cannot use (for example the audit log is for admins), the email verification screen (the API answers 403 `Email is not verified` until then), and `/set-password` for invitations.
+- **Still to do**: hiding modules the user's role cannot use (for example the audit log is for admins).
 
 ## 4. Code quality and automation
 

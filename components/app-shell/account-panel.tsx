@@ -1,8 +1,8 @@
 import { LogOut, Settings, UserRound } from "lucide-react";
 import Link from "next/link";
 import { Avatar } from "@/components/avatar";
+import { SignOutButton } from "@/components/sign-out-button";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { logout } from "@/lib/auth-actions";
 
 export type ShellUser = { name: string; email: string; role: string };
 
@@ -61,15 +61,14 @@ export function AccountPanel({
         <ThemeToggle />
       </div>
 
-      <form action={logout} className="border-t border-border pt-4">
-        <button
-          type="submit"
-          className={`${row} text-danger transition-colors hover:bg-danger/10`}
+      <div className="border-t border-border pt-4">
+        <SignOutButton
+          className={`${row} text-danger transition-colors hover:bg-danger/10 disabled:opacity-60`}
         >
           <LogOut aria-hidden="true" className="size-5" />
           Sign out
-        </button>
-      </form>
+        </SignOutButton>
+      </div>
     </div>
   );
 }

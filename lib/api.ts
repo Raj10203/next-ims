@@ -1,15 +1,8 @@
 import "server-only";
 import { headers } from "next/headers";
+import { readApiResponse, unreachable, type ApiResult } from "@/lib/api-result";
 
-export type ApiError = {
-  statusCode: number;
-  error?: string;
-  message: string;
-  errors?: { path: string; message: string }[];
-};
-
-export type ApiResult<T> =
-  { ok: true; data: T } | { ok: false; error: ApiError };
+export type { ApiError, ApiResult } from "@/lib/api-result";
 
 type RequestOptions = {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -22,7 +15,7 @@ type RequestOptions = {
 };
 
 const apiUrl = process.env.API_URL ?? "http://localhost:3001/api";
-const trustedProxies = Number(process.env.TRUST_PROXY) || 0;
+export const trustedProxies = Number(process.env.TRUST_PROXY) || 0;
 
 // Next.js only fills X-Forwarded-For when the request has none, so without a
 // trusted proxy in front the header is whatever the client wrote. With N
@@ -49,42 +42,19 @@ export async function apiRequest<T>(
   if (language) requestHeaders.set("accept-language", language);
   if (forwardedFor) requestHeaders.set("x-forwarded-for", forwardedFor);
 
-  let response: Response;
   try {
-    response = await fetch(`${apiUrl}${path}`, {
+    const response = await fetch(`${apiUrl}${path}`, {
       method,
       headers: requestHeaders,
       body: body === undefined ? undefined : JSON.stringify(body),
     });
+    return await readApiResponse<T>(response);
   } catch {
-    return {
-      ok: false,
-      error: {
-        statusCode: 0,
-        message:
-          "Cannot reach the server. Check your connection and try again.",
-      },
-    };
+    return unreachable;
   }
-
-  const data =
-    response.status === 204
-      ? undefined
-      : await response.json().catch(() => undefined);
-  if (response.ok) return { ok: true, data: data as T };
-  return {
-    ok: false,
-    error:
-      typeof data?.message === "string"
-        ? (data as ApiError)
-        : {
-            statusCode: response.status,
-            message: "Something went wrong. Try again.",
-          },
-  };
 }
 
-// For Server Components and Server Functions: passes on the user's language
+// For Server Components: passes on the user's language
 // and IP from the incoming request.
 export async function apiFetch<T>(
   path: string,
