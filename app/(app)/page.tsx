@@ -9,18 +9,18 @@ import {
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { DataList } from "@/components/data-list";
+import { outlineClass } from "@/components/form";
 import { PageHeader } from "@/components/page-header";
 import { Section } from "@/components/section";
 import { EmptyState, LoadError, TableSkeleton } from "@/components/states";
 import type { ApiResult } from "@/lib/api-result";
 import { can, getCurrentUser } from "@/lib/auth";
 import { listProducts } from "@/lib/catalog";
-import { itemStatusLabel } from "@/lib/catalog-labels";
 import { getStock, listItems } from "@/lib/items";
 import type { Page } from "@/lib/query";
 import { listSites } from "@/lib/sites";
 import { listUsers } from "@/lib/users";
+import { StockList } from "./_components/stock-list";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -124,6 +124,11 @@ async function StockOverview() {
     <Section
       id="stock"
       title="Stock by product and site"
+      action={
+        <Link href="/inventory" className={outlineClass}>
+          View all
+        </Link>
+      }
       description={
         stock.ok && stock.data.total > stock.data.items.length
           ? `The first ${stock.data.items.length} of ${stock.data.total} rows.`
@@ -138,31 +143,7 @@ async function StockOverview() {
           description="Counts appear once stock is added."
         />
       ) : (
-        <DataList
-          rows={stock.data.items.map((row) => ({
-            ...row,
-            id: `${row.productId}-${row.siteId}-${row.status}`,
-          }))}
-          href={(row) =>
-            `/inventory?productId=${row.productId}&siteId=${row.siteId}`
-          }
-          card={(row) => ({
-            title: row.productName,
-            subtitle: `${row.siteName} · ${itemStatusLabel(row.status)}`,
-            badge: (
-              <span className="text-lg font-semibold tabular-nums">
-                {row.count}
-              </span>
-            ),
-          })}
-          columns={[
-            { header: "Product", cell: (row) => row.productName },
-            { header: "Prefix", cell: (row) => row.prefix },
-            { header: "Site", cell: (row) => row.siteName },
-            { header: "Status", cell: (row) => itemStatusLabel(row.status) },
-            { header: "Count", cell: (row) => row.count, align: "right" },
-          ]}
-        />
+        <StockList rows={stock.data.items} />
       )}
     </Section>
   );

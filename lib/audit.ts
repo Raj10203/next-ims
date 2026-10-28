@@ -64,7 +64,7 @@ export function entityPath(entityType: string, entityId: string) {
     Site: "/sites",
     Category: "/inventory/categories",
     Product: "/inventory/products",
-    Item: "/inventory",
+    Item: "/inventory/items",
   };
   return base[entityType] ? `${base[entityType]}/${entityId}` : null;
 }

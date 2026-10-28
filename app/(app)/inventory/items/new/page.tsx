@@ -15,7 +15,7 @@ export const metadata: Metadata = { title: "Add stock" };
 async function NewStockForm({
   searchParams,
 }: {
-  searchParams: PageProps<"/inventory/new">["searchParams"];
+  searchParams: PageProps<"/inventory/items/new">["searchParams"];
 }) {
   const productId = digits((await searchParams).productId);
   const actor = await getCurrentUser();
@@ -51,10 +51,10 @@ async function NewStockForm({
 
 export default function NewStockPage({
   searchParams,
-}: PageProps<"/inventory/new">) {
+}: PageProps<"/inventory/items/new">) {
   return (
     <div className="space-y-6">
-      <BackLink href="/inventory" label="Items" />
+      <BackLink href="/inventory/items" label="Items" />
       <PageHeader
         title="Add stock"
         description="New stock arrives at headquarters. Each unit gets its own code for its sticker."

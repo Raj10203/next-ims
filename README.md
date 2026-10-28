@@ -115,10 +115,11 @@ Each screen has its loading, empty and error states (`components/states.tsx`). *
 
 | Screen | Route | nest-ims calls |
 | --- | --- | --- |
-| Dashboard | `/` | One `limit=1` list call per tile for its total (items, active products, sites, active users, pending invitations; only those the role may read), and `GET /items/stock` for stock by product, site and status |
-| Items | `/inventory` | `GET /items` with `search` (code or serial), `productId`, `categoryId`, `siteId`, `status`; products, categories and sites fill the filters |
-| Add stock | `/inventory/new` | Several units: `POST /items/bulk { productId, quantity }` (next automatic codes, at most 10 000). One unit: `POST /items` with an optional code suffix, serial number, condition and calibration date. `?productId=` preselects the product |
-| Item | `/inventory/[id]` | `GET /items/:id` and `GET /items/:id/movements` (history, paged with `?page=`); edit `PATCH /items/:id` (serial, condition, calibration date, note; a condition change adds a history entry); delete `DELETE /items/:id`, offered only while it is available at headquarters |
+| Dashboard | `/` | One `limit=1` list call per tile for its total (items, active products, sites, active users, pending invitations; only those the role may read), and the first 100 rows of `GET /items/stock` with a link to the Stock screen |
+| Stock | `/inventory` | `GET /items/stock` (unit counts per product, site and status, paged) with `productId`, `categoryId`, `siteId`, `status`; the same filters as Items. Each row opens Items filtered to its product, site and status. The Inventory module opens here |
+| Items | `/inventory/items` | `GET /items` with `search` (code or serial), `productId`, `categoryId`, `siteId`, `status`; products, categories and sites fill the filters |
+| Add stock | `/inventory/items/new` | Several units: `POST /items/bulk { productId, quantity }` (next automatic codes, at most 10 000). One unit: `POST /items` with an optional code suffix, serial number, condition and calibration date. `?productId=` preselects the product |
+| Item | `/inventory/items/[id]` | `GET /items/:id` and `GET /items/:id/movements` (history, paged with `?page=`); edit `PATCH /items/:id` (serial, condition, calibration date, note; a condition change adds a history entry); delete `DELETE /items/:id`, offered only while it is available at headquarters |
 | Products | `/inventory/products` | `GET /products` with `search`, `categoryId`, `type`, `measureType`, `isActive`; `GET /products/options` fills the type filters |
 | Add product, Product | `/inventory/products/new`, `/inventory/products/[id]` | `POST`/`PATCH`/`DELETE /products/:id`, `GET /products/options`, active categories; the product page shows its stock per site (`GET /items/stock?productId=`) with links to its items and to add stock |
 | Categories | `/inventory/categories`, `/new`, `/[id]` | `GET /categories` with `search`, `isActive`; `POST`/`PATCH`/`DELETE /categories/:id` |
@@ -126,6 +127,7 @@ Each screen has its loading, empty and error states (`components/states.tsx`). *
 | Audit log | `/audit` | `GET /audit-logs` with `entityType`, `entityId`, `actorId`, `action`; each entry opens its before and after values, and links to the record and to all its changes |
 
 - **The product form follows nest-ims's field rules** (`product-rules.ts`): only consumables may be counted in packs, a pack needs a size and unit, a calibrated product needs an interval. Fields that do not apply are hidden and sent as `null`, which a PATCH needs when a product stops being bulk or calibrated. While the product has stock, its prefix, type and pack are locked in the API (409), so the form disables them.
+- **Stock and Items share their filters** (`app/(app)/inventory/_components/item-filters.tsx`), so a stock row's link opens Items with the same selects filled in. The dashboard and the Stock screen draw rows with one component (`app/(app)/_components/stock-list.tsx`). A stock manager without `read Site` sees no site select, but a `?siteId=` from a stock row or a site page is kept as a hidden field.
 - **Item forms follow the product type**: condition only for non-consumables, calibration date only for calibrated products (a PATCH cannot set either to `null`). Stock is always added at headquarters.
 - **The site in-charge picker** needs `GET /roles` (create User) to find the `site_incharge` role id; without it the field is left out and the API keeps the current in-charge. The API checks that the user is an active in-charge within your scope.
 - **Labels** for product types, units, item statuses and history entries are in `lib/catalog-labels.ts`; a value nest-ims adds later still shows, humanised.
@@ -148,7 +150,7 @@ Every signed-in screen sits in the `app/(app)` route group, whose layout draws t
 | Module | Route | Section tabs |
 | --- | --- | --- |
 | Dashboard | `/` | none |
-| Inventory | `/inventory` | Items (also `/inventory/new`, `/inventory/[id]`), Products (`/inventory/products`), Categories (`/inventory/categories`) |
+| Inventory | `/inventory` | Stock (`/inventory`), Items (`/inventory/items`, also `/new`, `/[id]`), Products (`/inventory/products`), Categories (`/inventory/categories`) |
 | Sites | `/sites` | none (also `/sites/new`, `/sites/[id]`) |
 | People | `/people` | Users (also `/people/new`, `/people/[id]`), Invitations (`/people/invitations`), Roles (`/people/roles`) |
 | Audit log | `/audit` | none |
@@ -161,7 +163,7 @@ The account pages are outside the group, in route group `app/(auth)`, with only 
 - **Phones and tablets**: the top bar holds a menu button (left drawer with the modules), the module name, and the avatar (right drawer with the user's details, profile, settings, theme and sign out). The section tabs move to a strip under the top bar that scrolls sideways when they do not fit.
 - **The avatar opens the same account drawer at every size**, so user actions live in one place.
 - **Drawers are native modal `<dialog>`s**: focus stays inside, Esc closes them and focus returns to the button that opened them. Tapping the backdrop or a link closes them too, and the page behind does not scroll.
-- **The active module and tab are found from the URL** (longest matching path, so `/inventory/products` selects Products, not Items). These parts call `usePathname`, so the layout wraps them in `Suspense`: under Cache Components, a page with an unknown dynamic segment (such as `/inventory/[id]`) would otherwise fail to prerender.
+- **The active module and tab are found from the URL** (longest matching path, so `/inventory/products` selects Products, not Stock). These parts call `usePathname`, so the layout wraps them in `Suspense`: under Cache Components, a page with an unknown dynamic segment (such as `/inventory/items/[id]`) would otherwise fail to prerender.
 - **Modules and tabs the role cannot use are hidden.** Each link in `lib/navigation.ts` may name the permission it needs (`requires`, as in nest-ims); `components/app-shell/user-nav.tsx` checks it against `GET /auth/me` on the server and passes the links to hide. A module whose tabs are all hidden disappears, and one with some hidden opens on its first visible tab (a site technician's Inventory opens on Products). Hiding only spares dead ends: the pages and the API still check.
 
 ## 4. Code quality and automation

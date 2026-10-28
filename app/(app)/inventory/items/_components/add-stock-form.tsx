@@ -77,7 +77,8 @@ export function AddStockForm({
       fields,
       refresh: false,
       onSuccess(saved, form) {
-        if (!("items" in saved)) return router.push(`/inventory/${saved.id}`);
+        if (!("items" in saved))
+          return router.push(`/inventory/items/${saved.id}`);
         form.reset();
         const codes = saved.items.map((item) => item.code);
         return {

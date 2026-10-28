@@ -23,7 +23,8 @@ export const modules: AppModule[] = [
     label: "Inventory",
     icon: Package,
     tabs: [
-      { href: "/inventory", label: "Items", requires: ["read", "Item"] },
+      { href: "/inventory", label: "Stock", requires: ["read", "Item"] },
+      { href: "/inventory/items", label: "Items", requires: ["read", "Item"] },
       {
         href: "/inventory/products",
         label: "Products",

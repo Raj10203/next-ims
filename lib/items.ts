@@ -64,15 +64,20 @@ export type ItemQuery = {
   limit?: string;
 };
 
-export function parseItemQuery(params: SearchParams): ItemQuery {
+export type StockQuery = Omit<ItemQuery, "search">;
+
+export function parseStockQuery(params: SearchParams): StockQuery {
   return {
-    search: text(params.search, 100),
     productId: digits(params.productId),
     categoryId: digits(params.categoryId),
     siteId: digits(params.siteId),
     status: oneOf(params.status, itemStatuses),
     page: digits(params.page),
   };
+}
+
+export function parseItemQuery(params: SearchParams): ItemQuery {
+  return { search: text(params.search, 100), ...parseStockQuery(params) };
 }
 
 export function listItems(query: ItemQuery) {
@@ -89,6 +94,6 @@ export function listMovements(id: string, page?: string) {
   );
 }
 
-export function getStock(query: Omit<ItemQuery, "search">) {
+export function getStock(query: StockQuery) {
   return userFetch<Page<StockRow>>(`/items/stock${toSearch(query)}`);
 }

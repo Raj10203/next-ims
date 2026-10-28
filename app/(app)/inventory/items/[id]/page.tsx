@@ -35,7 +35,7 @@ function NotFound() {
   return (
     <NotFoundState
       title="Item not found"
-      href="/inventory"
+      href="/inventory/items"
       label="Back to items"
     />
   );
@@ -92,7 +92,7 @@ async function ItemDetail({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: PageProps<"/inventory/[id]">["searchParams"];
+  searchParams: PageProps<"/inventory/items/[id]">["searchParams"];
 }) {
   const { id } = await params;
   if (!/^\d+$/.test(id)) return <NotFound />;
@@ -193,7 +193,7 @@ async function ItemDetail({
             <ListBody>
               <History
                 movements={movements}
-                path={`/inventory/${item.id}`}
+                path={`/inventory/items/${item.id}`}
                 page={page}
               />
             </ListBody>
@@ -212,7 +212,7 @@ async function ItemDetail({
             title={`Delete ${item.code}?`}
             description="The item and its history are removed. Its code is not reused. This cannot be undone."
             label="Delete item"
-            redirectTo="/inventory"
+            redirectTo="/inventory/items"
           />
         </Section>
       )}
@@ -223,10 +223,10 @@ async function ItemDetail({
 export default function ItemPage({
   params,
   searchParams,
-}: PageProps<"/inventory/[id]">) {
+}: PageProps<"/inventory/items/[id]">) {
   return (
     <div className="space-y-6">
-      <BackLink href="/inventory" label="Items" />
+      <BackLink href="/inventory/items" label="Items" />
       <Suspense fallback={<DetailSkeleton />}>
         <ItemDetail params={params} searchParams={searchParams} />
       </Suspense>

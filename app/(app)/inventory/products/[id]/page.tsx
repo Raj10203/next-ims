@@ -140,7 +140,7 @@ async function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
             <div className="flex flex-wrap gap-2">
               {units > 0 && (
                 <Link
-                  href={`/inventory?productId=${product.id}`}
+                  href={`/inventory/items?productId=${product.id}`}
                   className={outlineClass}
                 >
                   View items
@@ -148,7 +148,7 @@ async function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
               )}
               {product.isActive && can(actor.data, "create", "Item") && (
                 <Link
-                  href={`/inventory/new?productId=${product.id}`}
+                  href={`/inventory/items/new?productId=${product.id}`}
                   className={`${submitClass} w-auto`}
                 >
                   <Plus aria-hidden="true" className="size-4" />
