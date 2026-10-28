@@ -4,7 +4,12 @@ import { Avatar } from "@/components/avatar";
 import { SignOutButton } from "@/components/sign-out-button";
 import { ThemeToggle } from "@/components/theme-toggle";
 
-export type ShellUser = { name: string; email: string; role: string };
+export type ShellUser = {
+  name: string;
+  email: string;
+  role: string;
+  avatarUrl: string | null;
+};
 
 const links = [
   { href: "/profile", label: "My profile", icon: UserRound },
@@ -25,7 +30,7 @@ export function AccountPanel({
     <div className="space-y-4">
       {user ? (
         <div className="flex items-center gap-3 px-3">
-          <Avatar name={user.name} size="lg" />
+          <Avatar name={user.name} src={user.avatarUrl} size="lg" />
           <div className="min-w-0">
             <p className="truncate font-semibold">{user.name}</p>
             <p className="truncate text-sm text-muted">{user.email}</p>

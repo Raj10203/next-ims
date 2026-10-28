@@ -16,10 +16,19 @@ export async function AccountMenu() {
       : undefined;
 
   return (
-    <Drawer side="right" label="Account" trigger={<Avatar name={name} />}>
+    <Drawer
+      side="right"
+      label="Account"
+      trigger={<Avatar name={name} src={user?.avatarUrl} />}
+    >
       <AccountPanel
         user={
-          user && { name, email: user.email, role: roleLabel(user.role.name) }
+          user && {
+            name,
+            email: user.email,
+            role: roleLabel(user.role.name),
+            avatarUrl: user.avatarUrl,
+          }
         }
         error={error}
       />
@@ -30,7 +39,7 @@ export async function AccountMenu() {
 export function AccountMenuSkeleton() {
   return (
     <span className="flex size-11 items-center justify-center">
-      <span className="size-8 animate-pulse rounded-full bg-surface-muted" />
+      <span className="size-8 skeleton rounded-full" />
     </span>
   );
 }

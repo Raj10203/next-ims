@@ -7,7 +7,12 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-export type NavLink = { href: string; label: string };
+// [action, subject] as in nest-ims permissions; without it, everyone sees it.
+export type NavLink = {
+  href: string;
+  label: string;
+  requires?: [string, string];
+};
 
 export type AppModule = NavLink & { icon: LucideIcon; tabs: NavLink[] };
 
@@ -18,24 +23,65 @@ export const modules: AppModule[] = [
     label: "Inventory",
     icon: Package,
     tabs: [
-      { href: "/inventory", label: "Items" },
-      { href: "/inventory/products", label: "Products" },
-      { href: "/inventory/categories", label: "Categories" },
+      { href: "/inventory", label: "Stock", requires: ["read", "Item"] },
+      { href: "/inventory/items", label: "Items", requires: ["read", "Item"] },
+      {
+        href: "/inventory/products",
+        label: "Products",
+        requires: ["read", "Product"],
+      },
+      {
+        href: "/inventory/categories",
+        label: "Categories",
+        requires: ["read", "Category"],
+      },
     ],
   },
-  { href: "/sites", label: "Sites", icon: MapPin, tabs: [] },
+  {
+    href: "/sites",
+    label: "Sites",
+    icon: MapPin,
+    tabs: [],
+    requires: ["read", "Site"],
+  },
   {
     href: "/people",
     label: "People",
     icon: Users,
     tabs: [
-      { href: "/people", label: "Users" },
-      { href: "/people/invitations", label: "Invitations" },
-      { href: "/people/roles", label: "Roles" },
+      { href: "/people", label: "Users", requires: ["read", "User"] },
+      {
+        href: "/people/invitations",
+        label: "Invitations",
+        requires: ["create", "User"],
+      },
+      { href: "/people/roles", label: "Roles", requires: ["create", "User"] },
     ],
   },
-  { href: "/audit", label: "Audit log", icon: ClipboardList, tabs: [] },
+  {
+    href: "/audit",
+    label: "Audit log",
+    icon: ClipboardList,
+    tabs: [],
+    requires: ["read", "AuditLog"],
+  },
 ];
+
+export type VisibleModule = AppModule & { target: string };
+
+// A module with tabs opens on its first visible tab, and disappears with
+// them; href stays the base path that marks it active.
+export function visibleModules(hidden: string[] = []): VisibleModule[] {
+  return modules.flatMap((module) => {
+    if (!module.tabs.length) {
+      return hidden.includes(module.href)
+        ? []
+        : [{ ...module, target: module.href }];
+    }
+    const tabs = module.tabs.filter((tab) => !hidden.includes(tab.href));
+    return tabs.length ? [{ ...module, tabs, target: tabs[0].href }] : [];
+  });
+}
 
 function matches(pathname: string, href: string) {
   if (href === "/") return pathname === "/";

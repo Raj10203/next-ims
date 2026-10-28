@@ -5,19 +5,15 @@ import {
   AccountMenuSkeleton,
 } from "@/components/app-shell/account-menu";
 import { Brand } from "@/components/app-shell/brand";
-import {
-  ActiveModuleNav,
-  ModuleNav,
-  ModuleTabs,
-  ModuleTitle,
-} from "@/components/app-shell/module-nav";
+import { ModuleNav, ModuleTitle } from "@/components/app-shell/module-nav";
+import { UserModuleNav, UserModuleTabs } from "@/components/app-shell/user-nav";
 import { Drawer } from "@/components/drawer";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 const moduleNav = (
   <nav aria-label="Modules">
     <Suspense fallback={<ModuleNav />}>
-      <ActiveModuleNav />
+      <UserModuleNav />
     </Suspense>
   </nav>
 );
@@ -57,7 +53,7 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
               </Suspense>
             </div>
             <Suspense>
-              <ModuleTabs className="hidden min-w-0 lg:block" />
+              <UserModuleTabs className="hidden min-w-0 lg:block" />
             </Suspense>
             <div className="ml-auto flex items-center gap-2">
               <div className="hidden lg:block">
@@ -69,7 +65,7 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
             </div>
           </div>
           <Suspense>
-            <ModuleTabs className="border-t border-border px-2 sm:px-4 lg:hidden" />
+            <UserModuleTabs className="border-t border-border px-2 sm:px-4 lg:hidden" />
           </Suspense>
         </header>
 

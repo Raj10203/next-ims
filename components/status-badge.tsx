@@ -22,3 +22,11 @@ export function StatusBadge({
     </span>
   );
 }
+
+export function ActiveBadge({ active }: { active: boolean }) {
+  return active ? (
+    <StatusBadge tone="success">Active</StatusBadge>
+  ) : (
+    <StatusBadge tone="neutral">Inactive</StatusBadge>
+  );
+}

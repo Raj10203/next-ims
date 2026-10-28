@@ -36,8 +36,9 @@ export async function apiRequest<T>(
   { method = "GET", body, token, language, forwardedFor }: RequestOptions = {},
 ): Promise<ApiResult<T>> {
   const requestHeaders = new Headers();
-  if (body !== undefined)
-    requestHeaders.set("content-type", "application/json");
+  // fetch sets the multipart content type, with its boundary, for FormData.
+  const json = body !== undefined && !(body instanceof FormData);
+  if (json) requestHeaders.set("content-type", "application/json");
   if (token) requestHeaders.set("authorization", `Bearer ${token}`);
   if (language) requestHeaders.set("accept-language", language);
   if (forwardedFor) requestHeaders.set("x-forwarded-for", forwardedFor);
@@ -46,7 +47,7 @@ export async function apiRequest<T>(
     const response = await fetch(`${apiUrl}${path}`, {
       method,
       headers: requestHeaders,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: json ? JSON.stringify(body) : (body as FormData | undefined),
     });
     return await readApiResponse<T>(response);
   } catch {

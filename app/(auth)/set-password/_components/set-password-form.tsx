@@ -1,24 +1,14 @@
 "use client";
 
-import { Check, Circle } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { FormMessage, SubmitLabel, submitClass } from "@/components/form";
 import { PasswordInput } from "@/components/password-input";
+import { PasswordRules } from "@/components/password-rules";
 import { formError, type FormState } from "@/lib/api-result";
 import { callApi } from "@/lib/client-api";
 import { field, useFormSubmit } from "@/lib/use-form-submit";
-
-// Mirrors passwordSchema in nest-ims as a guide while typing; the API decides,
-// and also refuses a password containing the user's name.
-const rules = [
-  { label: "At least 8 characters", test: (v: string) => v.length >= 8 },
-  { label: "A capital letter", test: (v: string) => /[A-Z]/.test(v) },
-  { label: "A small letter", test: (v: string) => /[a-z]/.test(v) },
-  { label: "A digit", test: (v: string) => /\d/.test(v) },
-  { label: "A symbol", test: (v: string) => /[^A-Za-z0-9]/.test(v) },
-];
 
 export function SetPasswordFormWithToken() {
   return <SetPasswordForm token={useSearchParams().get("token") ?? ""} />;
@@ -71,22 +61,7 @@ export function SetPasswordForm({ token }: { token: string | null }) {
           error={errors.password}
           onChange={setPasswordValue}
         />
-        <ul id="password-rules" className="mt-2 space-y-1 text-sm">
-          {rules.map(({ label, test }) => {
-            const met = test(password);
-            const Icon = met ? Check : Circle;
-            return (
-              <li
-                key={label}
-                className={`flex items-center gap-2 ${met ? "text-success" : "text-muted"}`}
-              >
-                <Icon aria-hidden="true" className="size-4 shrink-0" />
-                {label}
-                <span className="sr-only">{met ? "(done)" : "(missing)"}</span>
-              </li>
-            );
-          })}
-        </ul>
+        <PasswordRules id="password-rules" password={password} />
       </div>
 
       <PasswordInput

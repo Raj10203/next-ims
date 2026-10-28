@@ -8,7 +8,9 @@ import { ACCESS_COOKIE, saveSession, type TokenPair } from "@/lib/session";
 // JSON body, status codes and error shape. They only add the session: tokens
 // live in httpOnly cookies and never appear in a request or response body.
 
-type Method = "POST" | "PUT";
+type Method = "POST" | "PUT" | "PATCH" | "DELETE";
+
+type RouteParams = { params: Promise<Record<string, string>> };
 
 export function errorResponse(
   statusCode: number,
@@ -23,9 +25,11 @@ export function errorResponse(
 
 // Server Actions refuse cross-site calls on their own; Route Handlers do not,
 // and these act with the user's cookies. JSON-only bodies also keep plain
-// HTML forms on other sites out.
+// HTML forms on other sites out. With form, the body is multipart instead
+// (file uploads); those routes use PUT, which HTML forms cannot send.
 export async function readRequest(
   request: NextRequest,
+  { form = false }: { form?: boolean } = {},
 ): Promise<{ body?: unknown } | NextResponse> {
   const origin = request.headers.get("origin");
   const host =
@@ -39,9 +43,29 @@ export async function readRequest(
     return errorResponse(403, "Forbidden", "Cross-site request refused.");
   }
 
+  const type = request.headers.get("content-type");
+  if (form) {
+    if (!type?.startsWith("multipart/form-data")) {
+      return errorResponse(
+        415,
+        "Unsupported Media Type",
+        "Send the body as multipart form data.",
+      );
+    }
+    try {
+      return { body: await request.formData() };
+    } catch {
+      return errorResponse(
+        400,
+        "Bad Request",
+        "The body is not valid form data.",
+      );
+    }
+  }
+
   const text = await request.text();
   if (!text) return {};
-  if (!request.headers.get("content-type")?.startsWith("application/json")) {
+  if (!type?.startsWith("application/json")) {
     return errorResponse(
       415,
       "Unsupported Media Type",
@@ -80,22 +104,37 @@ export function toResponse<T>(result: ApiResult<T>) {
     : NextResponse.json(result.data, { status: result.status });
 }
 
+// ":id" in a path takes the route's [id] segment. Digits only, so a crafted
+// segment ("..") cannot reach another nest-ims route.
+async function apiPath(path: string, context?: RouteParams) {
+  if (!path.includes(":id")) return path;
+  const id = (await context?.params)?.id;
+  return id && /^\d+$/.test(id) ? path.replace(":id", id) : null;
+}
+
 // The whole handler for a route that needs nothing beyond the session.
 // onSuccess may set cookies, or replace the response (to drop a token).
 export function passThrough<T>(
   path: string,
   {
     method = "POST",
+    form = false,
     onSuccess,
   }: {
     method?: Method;
+    form?: boolean;
     onSuccess?: (data: T) => Promise<NextResponse | void>;
   } = {},
 ) {
-  return async (request: NextRequest) => {
-    const read = await readRequest(request);
+  return async (request: NextRequest, context?: RouteParams) => {
+    const read = await readRequest(request, { form });
     if (read instanceof NextResponse) return read;
-    const result = await forward<T>(request, path, { method, body: read.body });
+    const target = await apiPath(path, context);
+    if (!target) return errorResponse(404, "Not Found", "Not found.");
+    const result = await forward<T>(request, target, {
+      method,
+      body: read.body,
+    });
     if (result.ok && onSuccess) {
       const replaced = await onSuccess(result.data);
       if (replaced) return replaced;

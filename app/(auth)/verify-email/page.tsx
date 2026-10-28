@@ -23,8 +23,8 @@ async function VerifyEmail({
 function VerifyEmailSkeleton() {
   return (
     <div aria-hidden="true" className="space-y-5">
-      <div className="h-10 animate-pulse rounded-lg bg-surface-muted" />
-      <div className="h-11 animate-pulse rounded-lg bg-surface-muted" />
+      <div className="h-10 skeleton rounded-lg" />
+      <div className="h-11 skeleton rounded-lg" />
     </div>
   );
 }
