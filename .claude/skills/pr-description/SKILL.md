@@ -7,7 +7,7 @@ description: Write a plain-language pull request description and release notes f
 
 Write the release-facing part of a pull request description, for a product owner and for whoever releases it. Reviewers read the code; do not explain how it works.
 
-Two places use this skill: a local session on request, and the "PR description" job in `.github/workflows/claude-code-review.yml`, which follows the steps, rules and template here and writes the result into a bot-owned block of the PR body. Keep the template's headings stable: the review job checks Screens, Backend dependency and Release notes against the diff.
+Two places use this skill: a local session on request, and the "PR description" job in `.github/workflows/claude-code-review.yml`, which follows the steps, rules and template here and writes the result into a bot-owned block of the PR body. Keep the template's headings stable: the review job checks Screens and Release notes against the diff, and runs its cross-repo check against the nest-ims branch named in the description.
 
 ## Gather
 
@@ -22,14 +22,15 @@ The base is `origin/<BASE BRANCH>` from the job's prompt in CI, and `origin/mast
   - "What users see (UI/UX)": who reaches it and what looks or behaves differently for them (layout, flow, feedback such as loading, empty and error states, phone vs desktop when the PR makes them differ).
   - "Logic changed": what the screen now does differently behind the UI (rules, validation, data it loads or sends, redirects, permissions), in plain words.
   - Keep it a pointer, not a walkthrough: each cell is one short phrase and a row reads in 2 to 3 lines at most. Name only the main change; the reviewer reads the code for the details. Write "No change" in a cell that does not apply.
-- Backend dependency: every nest-ims endpoint this PR starts calling, stops calling, or calls with a different method, body, query or expected response field. Name the method and path (e.g. `POST /api/auth/email-otp/send`).
+- Cross-repo check: the nest-ims branch the backend side of this work is on, then every nest-ims endpoint this PR starts calling, stops calling, or calls with a different method, body, query or expected response field. Name the method and path (e.g. `POST /api/auth/email-otp/send`).
+  - The branch comes from a `cross-repo check: <branch>` line the author writes in the PR description, outside the bot block (in CI, read it from the current body; locally, use the branch the user names). The review job checks the API calls against that nest-ims branch, or against `master` when there is no such line. Never invent a branch.
 
 ## Release notes: only what THIS PR needs beyond the standard deploy
 
 Every deploy already installs dependencies, builds the app and starts it. Never list those, or generic checks such as "open the app" or "try the new feature". List a step only when this PR causes it:
 
 - Configuration: a variable added or changed in `.env.example`, `next.config.ts` or `docker-compose.yml`: name it and the value to set; say when it is optional. A `NEXT_PUBLIC_*` variable is inlined at build time, so say it must be set before the build (a restart is not enough).
-- Backend first: when the Backend dependency above needs a nest-ims change, say the backend release must go out first. When the app's own URL or a new origin is involved, the backend's `CORS_ORIGINS` and `APP_URL` must match.
+- Backend first: when the Cross-repo check above needs a nest-ims change, say the backend release must go out first. When the app's own URL or a new origin is involved, the backend's `CORS_ORIGINS` and `APP_URL` must match.
 - Third parties: a new external service, account, key, script or provider (`package.json`, `next.config.ts`, `.env.example`): what must be created or activated, and where its credentials go.
 - Moved URLs: a removed or renamed route that bookmarks, emails (the invitation link the backend builds from `APP_URL`) or other apps link to.
 
@@ -57,8 +58,9 @@ One or two sentences: what this PR delivers and why.
 
 (These rows only show the format. Write "None." instead of the table when no route changed.)
 
-## Backend dependency
+## Cross-repo check
 
+- nest-ims branch: `<branch>` (or: Not named. Add a `cross-repo check: <branch>` line to the description, outside this block; until then the review checks `master`.)
 - `METHOD /api/path`: what the screen uses it for; whether it is new for this app.
 
 ## Release notes
@@ -75,4 +77,5 @@ In CI the job's prompt sets the output instead; skip this section there.
 - Title: a conventional commit that names the outcome, for example `feat: login, email verification screen and responsive user list`.
 - Link issues with `Fixes #N` when they exist. If the PR mixes unrelated features, say so in the Summary.
 - Never create an artifact, file or web page for the result. Print it in the chat as two code fences so the user can copy each: the title in a plain ``` fence, then the description in a ````markdown fence (four backticks, because it contains its own code spans), starting with `## Summary`. Keep remarks (for example, items you could not verify) outside the fences, after them, in one or two lines.
+- When the user names the nest-ims branch, put `cross-repo check: <branch>` as the first line of the description, above `## Summary`, so it stays author text that the review job reads.
 - To update an open PR: `gh pr edit <n> --title "..." --body-file <file>`. On the next push CI adds its own block on top and keeps this text below it under "Author notes".
