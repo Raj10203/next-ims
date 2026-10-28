@@ -25,7 +25,7 @@ async function Stock({
 
   const [result, options] = await Promise.all([
     getStock(query),
-    itemFilterOptions(actor.data),
+    itemFilterOptions(actor.data, query),
   ]);
 
   return (

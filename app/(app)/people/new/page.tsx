@@ -3,9 +3,9 @@ import { Suspense } from "react";
 import { FormMessage } from "@/components/form";
 import { FormSkeleton } from "@/components/states";
 import { can, getCurrentUser } from "@/lib/auth";
-import { listAssignableRoles, siteOptions } from "@/lib/users";
+import { listAssignableRoles, siteChoice } from "@/lib/users";
 import { BackLink } from "@/components/back-link";
-import { roleOptions, siteLabels } from "../_components/options";
+import { roleOptions } from "../_components/options";
 import { UserForm } from "../_components/user-form";
 
 export const metadata: Metadata = { title: "Add user" };
@@ -19,17 +19,10 @@ async function NewUserForm() {
 
   const [roles, sites] = await Promise.all([
     listAssignableRoles(),
-    siteOptions(actor.data),
+    siteChoice(actor.data),
   ]);
   if (!roles.ok) return <FormMessage message={roles.error.message} />;
-  if (!sites.ok) return <FormMessage message={sites.error.message} />;
-  return (
-    <UserForm
-      roles={roleOptions(roles.data)}
-      sites={siteLabels(sites.data)}
-      defaultSiteId={actor.data.siteId}
-    />
-  );
+  return <UserForm roles={roleOptions(roles.data)} sites={sites} />;
 }
 
 export default function NewUserPage() {

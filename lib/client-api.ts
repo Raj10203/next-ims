@@ -7,7 +7,10 @@ export async function callApi<T>(
   {
     method = "POST",
     body,
-  }: { method?: "POST" | "PUT" | "PATCH" | "DELETE"; body?: unknown } = {},
+  }: {
+    method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+    body?: unknown;
+  } = {},
 ): Promise<ApiResult<T>> {
   const json = body !== undefined && !(body instanceof FormData);
   try {

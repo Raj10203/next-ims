@@ -5,7 +5,7 @@ import { FormMessage } from "@/components/form";
 import { PageHeader } from "@/components/page-header";
 import { FormSkeleton, LoadError } from "@/components/states";
 import { can, getCurrentUser } from "@/lib/auth";
-import { inchargeOptions } from "../_components/incharge-options";
+import { inchargePicker } from "../_components/incharge-options";
 import { SiteForm } from "../_components/site-form";
 
 export const metadata: Metadata = { title: "Add site" };
@@ -16,7 +16,7 @@ async function NewSiteForm() {
   if (!can(actor.data, "create", "Site")) {
     return <FormMessage message="Your role cannot add sites." />;
   }
-  return <SiteForm incharges={await inchargeOptions(actor.data)} />;
+  return <SiteForm incharges={await inchargePicker(actor.data)} />;
 }
 
 export default function NewSitePage() {

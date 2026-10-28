@@ -1,66 +1,61 @@
 import { SelectField } from "@/components/form";
+import { SearchSelect } from "@/components/search-select";
 import { can, type ApiUser } from "@/lib/auth";
-import { listCategories, listProducts } from "@/lib/catalog";
 import { itemStatusLabel } from "@/lib/catalog-labels";
 import { itemStatuses, type ItemQuery } from "@/lib/items";
-import { listSites } from "@/lib/sites";
+import { pickedOption } from "@/lib/picked";
 
-export function itemFilterOptions(actor: ApiUser) {
+// The pickers search the API, so only the filtered ids need labels here.
+export function itemFilterOptions(actor: ApiUser, query: ItemQuery) {
   return Promise.all([
-    listProducts({ limit: "100" }),
-    listCategories({ limit: "100" }),
-    can(actor, "read", "Site") ? listSites({ limit: "100" }) : null,
+    can(actor, "read", "Product")
+      ? pickedOption("product", query.productId)
+      : undefined,
+    can(actor, "read", "Category")
+      ? pickedOption("category", query.categoryId)
+      : undefined,
+    can(actor, "read", "Site") ? pickedOption("site", query.siteId) : undefined,
   ]);
 }
 
-// The selects shared by the stock and items lists, so a stock row's link
-// opens the items list with the same filters showing.
+// The filters shared by the stock and items lists, so a stock row's link
+// opens the items list with the same filters showing. undefined: the role
+// may not list that kind of record, so its picker is left out.
 export function ItemFilters({
   query,
-  options: [products, categories, sites],
+  options: [product, category, site],
 }: {
   query: ItemQuery;
   options: Awaited<ReturnType<typeof itemFilterOptions>>;
 }) {
   return (
     <>
-      {products.ok && (
-        <SelectField
+      {product !== undefined && (
+        <SearchSelect
           id="productId"
           label="Product"
-          defaultValue={query.productId ?? ""}
-        >
-          <option value="">All products</option>
-          {products.data.items.map((product) => (
-            <option key={product.id} value={product.id}>
-              {product.name} ({product.prefix})
-            </option>
-          ))}
-        </SelectField>
+          kind="product"
+          value={product}
+          emptyLabel="All products"
+        />
       )}
-      {categories.ok && (
-        <SelectField
+      {category !== undefined && (
+        <SearchSelect
           id="categoryId"
           label="Category"
-          defaultValue={query.categoryId ?? ""}
-        >
-          <option value="">All categories</option>
-          {categories.data.items.map((category) => (
-            <option key={category.id} value={category.id}>
-              {category.name}
-            </option>
-          ))}
-        </SelectField>
+          kind="category"
+          value={category}
+          emptyLabel="All categories"
+        />
       )}
-      {sites?.ok ? (
-        <SelectField id="siteId" label="Site" defaultValue={query.siteId ?? ""}>
-          <option value="">All sites</option>
-          {sites.data.items.map((site) => (
-            <option key={site.id} value={site.id}>
-              {site.name}
-            </option>
-          ))}
-        </SelectField>
+      {site !== undefined ? (
+        <SearchSelect
+          id="siteId"
+          label="Site"
+          kind="site"
+          value={site}
+          emptyLabel="All sites"
+        />
       ) : (
         // Item readers without read Site still arrive with ?siteId= from a
         // stock row; filtering again must not drop it.

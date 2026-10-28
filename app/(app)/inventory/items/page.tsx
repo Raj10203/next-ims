@@ -27,7 +27,7 @@ async function ItemList({
 
   const [result, options] = await Promise.all([
     listItems(query),
-    itemFilterOptions(actor.data),
+    itemFilterOptions(actor.data, query),
   ]);
 
   return (

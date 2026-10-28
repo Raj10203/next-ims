@@ -1,5 +1,4 @@
 import "server-only";
-import type { ApiResult } from "@/lib/api-result";
 import { can, userFetch, type ApiUser } from "@/lib/auth";
 import {
   digits,
@@ -9,7 +8,9 @@ import {
   type Page,
   type SearchParams,
 } from "@/lib/query";
-import { listSites, type PersonSummary, type SiteOption } from "@/lib/sites";
+import { pickedOption } from "@/lib/picked";
+import { toPickerOption, type PickerOption } from "@/lib/pickers";
+import type { PersonSummary, SiteOption } from "@/lib/sites";
 
 export type UserStatus = "invited" | "active" | "inactive";
 
@@ -105,20 +106,35 @@ export function listFeatureRoles() {
   return userFetch<RoleOption[]>("/roles/features");
 }
 
-// Site in-charges may not list sites, so their forms offer the sites already
-// known: the user's current one and the actor's own (by id only).
-export async function siteOptions(
+// What the user form's site field offers. Site in-charges may not list
+// sites, so they choose among the sites already known: the user's current one
+// and their own (by id only). Everyone else searches.
+export type SiteChoice =
+  | { search: true; current: PickerOption<"site"> | null }
+  | { search: false; options: PickerOption<"site">[]; current: number | null };
+
+export async function siteChoice(
   actor: ApiUser,
-  known: (SiteOption | null)[] = [],
-): Promise<ApiResult<SiteOption[]>> {
-  let sites = known.filter((site): site is SiteOption => !!site);
+  current: SiteOption | null = null,
+): Promise<SiteChoice> {
   if (can(actor, "read", "Site")) {
-    const result = await listSites({ limit: "100" });
-    if (!result.ok) return result;
-    sites = [...result.data.items, ...sites];
-  } else if (actor.siteId) {
-    sites.unshift({ id: actor.siteId, name: "Your site", code: "" });
+    return {
+      search: true,
+      current: current
+        ? toPickerOption("site", current)
+        : await pickedOption("site", actor.siteId?.toString()),
+    };
   }
-  const unique = new Map(sites.map((site) => [site.id, site]));
-  return { ok: true, status: 200, data: [...unique.values()] };
+  const known: SiteOption[] = [
+    ...(actor.siteId
+      ? [{ id: actor.siteId, name: "Your site", code: "" }]
+      : []),
+    ...(current ? [current] : []),
+  ];
+  const unique = new Map(known.map((site) => [site.id, site]));
+  return {
+    search: false,
+    options: [...unique.values()].map((site) => toPickerOption("site", site)),
+    current: current?.id ?? actor.siteId ?? null,
+  };
 }

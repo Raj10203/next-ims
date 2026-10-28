@@ -11,13 +11,13 @@ import {
 } from "@/components/filter-form";
 import { SelectField, submitClass } from "@/components/form";
 import { PageHeader } from "@/components/page-header";
+import { SearchSelect } from "@/components/search-select";
 import { Pagination } from "@/components/pagination";
 import { EmptyState, ListSkeleton, LoadError } from "@/components/states";
 import { ActiveBadge } from "@/components/status-badge";
 import { can, getCurrentUser } from "@/lib/auth";
 import {
   getProductOptions,
-  listCategories,
   listProducts,
   parseProductQuery,
 } from "@/lib/catalog";
@@ -26,6 +26,7 @@ import {
   packLabel,
   productTypeLabel,
 } from "@/lib/catalog-labels";
+import { pickedOption } from "@/lib/picked";
 import { isFiltered } from "@/lib/query";
 
 export const metadata: Metadata = { title: "Products" };
@@ -49,9 +50,9 @@ async function ProductList({
   searchParams: PageProps<"/inventory/products">["searchParams"];
 }) {
   const query = parseProductQuery(await searchParams);
-  const [result, categories, options] = await Promise.all([
+  const [result, category, options] = await Promise.all([
     listProducts(query),
-    listCategories({ limit: "100" }),
+    pickedOption("category", query.categoryId),
     getProductOptions(),
   ]);
 
@@ -64,20 +65,13 @@ async function ProductList({
             placeholder="Name or prefix"
             maxLength={150}
           />
-          {categories.ok && (
-            <SelectField
-              id="categoryId"
-              label="Category"
-              defaultValue={query.categoryId ?? ""}
-            >
-              <option value="">All categories</option>
-              {categories.data.items.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </SelectField>
-          )}
+          <SearchSelect
+            id="categoryId"
+            label="Category"
+            kind="category"
+            value={category}
+            emptyLabel="All categories"
+          />
           {options.ok && (
             <>
               <SelectField

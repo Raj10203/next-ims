@@ -12,13 +12,13 @@ import {
   inviteExpiry,
   listAssignableRoles,
   listFeatureRoles,
-  siteOptions,
+  siteChoice,
   userStatus,
   type ManagedUser,
 } from "@/lib/users";
 import { AccountActions } from "./account-actions";
 import { PasswordForm } from "./password-form";
-import { roleOptions, siteLabels } from "./options";
+import { roleOptions } from "./options";
 import { FeatureRolesForm, RoleForm } from "./role-forms";
 import { UserForm } from "./user-form";
 import { UserStatusBadge } from "./user-status-badge";
@@ -106,7 +106,7 @@ export async function UserDetail({
     manageAccount && can(actor.data, "assign", "FeatureRole")
       ? listFeatureRoles()
       : null,
-    manage ? siteOptions(actor.data, [user.site]) : null,
+    manage ? siteChoice(actor.data, user.site) : null,
   ]);
 
   return (
@@ -129,21 +129,16 @@ export async function UserDetail({
       <div className="grid items-start gap-6 lg:grid-cols-2">
         {manage && sites && (
           <Section id="details" title="Details">
-            {sites.ok ? (
-              <UserForm
-                user={{
-                  id: user.id,
-                  firstName: user.firstName,
-                  middleName: user.middleName,
-                  lastName: user.lastName,
-                  email: user.email,
-                  siteId: user.site?.id ?? null,
-                }}
-                sites={siteLabels(sites.data)}
-              />
-            ) : (
-              <FormMessage message={sites.error.message} />
-            )}
+            <UserForm
+              user={{
+                id: user.id,
+                firstName: user.firstName,
+                middleName: user.middleName,
+                lastName: user.lastName,
+                email: user.email,
+              }}
+              sites={sites}
+            />
           </Section>
         )}
 

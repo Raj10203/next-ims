@@ -54,14 +54,14 @@ export type Option = { id: number; label: string };
 
 type FieldProps = { id: string; label: string; error?: string; hint?: string };
 
-function describedBy(id: string, error?: string, hint?: string) {
+export function describedBy(id: string, error?: string, hint?: string) {
   return (
     [hint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(" ") ||
     undefined
   );
 }
 
-function FieldText({ id, label, hint }: Omit<FieldProps, "error">) {
+export function FieldText({ id, label, hint }: Omit<FieldProps, "error">) {
   return (
     <>
       <label htmlFor={id} className="text-sm font-medium">

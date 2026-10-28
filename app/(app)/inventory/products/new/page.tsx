@@ -5,7 +5,7 @@ import { FormMessage } from "@/components/form";
 import { PageHeader } from "@/components/page-header";
 import { FormSkeleton, LoadError } from "@/components/states";
 import { can, getCurrentUser } from "@/lib/auth";
-import { productChoices } from "../_components/choices";
+import { getProductOptions, listCategories } from "@/lib/catalog";
 import { ProductForm } from "../_components/product-form";
 
 export const metadata: Metadata = { title: "Add product" };
@@ -16,9 +16,14 @@ async function NewProductForm() {
   if (!can(actor.data, "create", "Product")) {
     return <FormMessage message="Your role cannot add products." />;
   }
-  const choices = await productChoices();
+  // limit=1: only whether an active category exists; the picker searches.
+  const [choices, categories] = await Promise.all([
+    getProductOptions(),
+    listCategories({ isActive: "true", limit: "1" }),
+  ]);
   if (!choices.ok) return <LoadError error={choices.error} />;
-  if (!choices.data.categories.length) {
+  if (!categories.ok) return <LoadError error={categories.error} />;
+  if (!categories.data.total) {
     return (
       <FormMessage
         tone="info"

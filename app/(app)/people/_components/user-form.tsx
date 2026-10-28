@@ -9,10 +9,11 @@ import {
   submitClass,
   type Option,
 } from "@/components/form";
+import { SearchSelect } from "@/components/search-select";
 import { callApi } from "@/lib/client-api";
 import { field } from "@/lib/use-form-submit";
 import { useApiForm } from "@/lib/use-api-form";
-import type { ManagedUser } from "@/lib/users";
+import type { ManagedUser, SiteChoice } from "@/lib/users";
 
 const fields = [
   "firstName",
@@ -26,19 +27,17 @@ const fields = [
 type EditedUser = Pick<
   ManagedUser,
   "id" | "firstName" | "middleName" | "lastName" | "email"
-> & { siteId: number | null };
+>;
 
 // Editing leaves the role out: PATCH /users/:id cannot change it (RoleForm).
 export function UserForm({
   user,
   roles,
   sites,
-  defaultSiteId,
 }: {
   user?: EditedUser;
   roles?: Option[];
-  sites: Option[];
-  defaultSiteId?: number | null;
+  sites: SiteChoice;
 }) {
   const router = useRouter();
 
@@ -138,22 +137,34 @@ export function UserForm({
             ))}
           </SelectField>
         )}
-        <SelectField
-          id="siteId"
-          label="Site"
-          required
-          defaultValue={user?.siteId ?? defaultSiteId ?? ""}
-          error={errors.siteId}
-        >
-          <option value="" disabled>
-            Choose a site
-          </option>
-          {sites.map((site) => (
-            <option key={site.id} value={site.id}>
-              {site.label}
+        {sites.search ? (
+          <SearchSelect
+            id="siteId"
+            label="Site"
+            required
+            kind="site"
+            value={sites.current}
+            placeholder="Choose a site"
+            error={errors.siteId}
+          />
+        ) : (
+          <SelectField
+            id="siteId"
+            label="Site"
+            required
+            defaultValue={sites.current ?? ""}
+            error={errors.siteId}
+          >
+            <option value="" disabled>
+              Choose a site
             </option>
-          ))}
-        </SelectField>
+            {sites.options.map((site) => (
+              <option key={site.id} value={site.id}>
+                {site.label}
+              </option>
+            ))}
+          </SelectField>
+        )}
       </div>
 
       <button

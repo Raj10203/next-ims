@@ -4,22 +4,17 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   FormMessage,
-  SelectField,
   SubmitLabel,
   TextAreaField,
   TextField,
   submitClass,
 } from "@/components/form";
+import { SearchSelect } from "@/components/search-select";
+import { packLabel, productTypeLabel } from "@/lib/catalog-labels";
 import { callApi } from "@/lib/client-api";
+import type { PickerOption } from "@/lib/pickers";
 import { useApiForm } from "@/lib/use-api-form";
 import { field, optionalField, optionalNumber } from "@/lib/use-form-submit";
-
-export type StockProduct = {
-  id: number;
-  label: string;
-  prefix: string;
-  type: string;
-};
 
 type Added = { quantity: number; items: { id: number; code: string }[] };
 
@@ -37,16 +32,13 @@ const fields = [
 const MAX_QUANTITY = 10_000;
 
 export function AddStockForm({
-  products,
-  productId,
+  initial,
 }: {
-  products: StockProduct[];
-  productId?: number;
+  initial: PickerOption<"product"> | null;
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<"bulk" | "single">("bulk");
-  const [selected, setSelected] = useState(productId ?? 0);
-  const product = products.find((option) => option.id === selected);
+  const [product, setProduct] = useState(initial?.record ?? null);
 
   const { state, pending, onSubmit } = useApiForm(
     (form) => {
@@ -97,23 +89,22 @@ export function AddStockForm({
     <form onSubmit={onSubmit} className="space-y-5">
       <FormMessage message={state.message} tone={state.tone} />
 
-      <SelectField
+      <SearchSelect
         id="productId"
         label="Product"
         required
-        value={selected || ""}
-        onChange={(event) => setSelected(Number(event.target.value))}
+        kind="product"
+        params={{ isActive: "true" }}
+        value={initial}
+        placeholder="Choose a product"
+        hint={
+          product
+            ? `${productTypeLabel(product.type)} · ${packLabel(product)}`
+            : "Active products."
+        }
+        onSelect={(option) => setProduct(option?.record ?? null)}
         error={errors.productId}
-      >
-        <option value="" disabled>
-          Choose a product
-        </option>
-        {products.map((option) => (
-          <option key={option.id} value={option.id}>
-            {option.label}
-          </option>
-        ))}
-      </SelectField>
+      />
 
       <fieldset>
         <legend className="text-sm font-medium">How many</legend>

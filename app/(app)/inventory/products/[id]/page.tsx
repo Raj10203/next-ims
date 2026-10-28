@@ -17,7 +17,7 @@ import {
 import { ActiveBadge } from "@/components/status-badge";
 import { historyHref } from "@/lib/audit";
 import { can, fullName, getCurrentUser } from "@/lib/auth";
-import { getProduct } from "@/lib/catalog";
+import { getProduct, getProductOptions } from "@/lib/catalog";
 import {
   itemStatusLabel,
   packLabel,
@@ -25,7 +25,7 @@ import {
 } from "@/lib/catalog-labels";
 import { formatDate } from "@/lib/format";
 import { getStock } from "@/lib/items";
-import { productChoices } from "../_components/choices";
+import { toPickerOption } from "@/lib/pickers";
 import { ProductForm } from "../_components/product-form";
 
 export const metadata: Metadata = { title: "Product" };
@@ -63,7 +63,7 @@ async function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
     can(actor.data, "read", "Item")
       ? getStock({ productId: id, limit: "100" })
       : null,
-    update ? productChoices(product.category) : null,
+    update ? getProductOptions() : null,
   ]);
   const rows = stock?.ok
     ? stock.data.items.map((row) => ({
@@ -191,7 +191,7 @@ async function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
                 id: product.id,
                 name: product.name,
                 prefix: product.prefix,
-                categoryId: product.categoryId,
+                category: toPickerOption("category", product.category),
                 type: product.type,
                 measureType: product.measureType,
                 packSize: product.packSize,

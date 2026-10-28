@@ -1,21 +1,23 @@
 import { FilterForm } from "@/components/filter-form";
 import { SelectField, TextField } from "@/components/form";
+import { SearchSelect } from "@/components/search-select";
 import { roleLabel } from "@/lib/auth";
+import type { PickerOption } from "@/lib/pickers";
 import { statusLabel } from "./user-status-badge";
-import type { SiteOption } from "@/lib/sites";
 import { statuses, type RoleOption, type UserQuery } from "@/lib/users";
 
 export function UserFilters({
   action,
   query,
   roles,
-  sites,
+  site,
   showStatus,
 }: {
   action: string;
   query: UserQuery;
   roles: RoleOption[] | null;
-  sites: SiteOption[] | null;
+  // undefined when the role may not list sites.
+  site: PickerOption<"site"> | null | undefined;
   showStatus: boolean;
 }) {
   return (
@@ -57,15 +59,14 @@ export function UserFilters({
           ))}
         </SelectField>
       )}
-      {sites && (
-        <SelectField id="siteId" label="Site" defaultValue={query.siteId ?? ""}>
-          <option value="">All sites</option>
-          {sites.map((site) => (
-            <option key={site.id} value={site.id}>
-              {site.name}
-            </option>
-          ))}
-        </SelectField>
+      {site !== undefined && (
+        <SearchSelect
+          id="siteId"
+          label="Site"
+          kind="site"
+          value={site}
+          emptyLabel="All sites"
+        />
       )}
     </FilterForm>
   );

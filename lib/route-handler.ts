@@ -8,7 +8,7 @@ import { ACCESS_COOKIE, saveSession, type TokenPair } from "@/lib/session";
 // JSON body, status codes and error shape. They only add the session: tokens
 // live in httpOnly cookies and never appear in a request or response body.
 
-type Method = "POST" | "PUT" | "PATCH" | "DELETE";
+type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 type RouteParams = { params: Promise<Record<string, string>> };
 
@@ -140,6 +140,24 @@ export function passThrough<T>(
       if (replaced) return replaced;
     }
     return toResponse(result);
+  };
+}
+
+// A list for the search pickers, query string passed on as is (nest-ims
+// validates it). A same-origin fetch GET sends no Origin, so readRequest's
+// check cannot apply; Sec-Fetch-Site refuses cross-site reads where the
+// browser sends it, and the response has no CORS headers either way.
+export function listThrough<T>(path: string) {
+  return async (request: NextRequest) => {
+    const site = request.headers.get("sec-fetch-site");
+    if (site && site !== "same-origin") {
+      return errorResponse(403, "Forbidden", "Cross-site request refused.");
+    }
+    return toResponse(
+      await forward<T>(request, path + request.nextUrl.search, {
+        method: "GET",
+      }),
+    );
   };
 }
 

@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/page-header";
 import { FormSkeleton, LoadError } from "@/components/states";
 import { can, getCurrentUser } from "@/lib/auth";
 import { listProducts } from "@/lib/catalog";
-import { packLabel } from "@/lib/catalog-labels";
+import { pickedOption } from "@/lib/picked";
 import { digits } from "@/lib/query";
 import { AddStockForm } from "../_components/add-stock-form";
 
@@ -26,9 +26,13 @@ async function NewStockForm({
     );
   }
 
-  const products = await listProducts({ isActive: "true", limit: "100" });
+  // limit=1: only whether an active product exists; the picker searches.
+  const [products, initial] = await Promise.all([
+    listProducts({ isActive: "true", limit: "1" }),
+    pickedOption("product", productId),
+  ]);
   if (!products.ok) return <LoadError error={products.error} />;
-  if (!products.data.items.length) {
+  if (!products.data.total) {
     return (
       <FormMessage
         tone="info"
@@ -36,17 +40,7 @@ async function NewStockForm({
       />
     );
   }
-  return (
-    <AddStockForm
-      products={products.data.items.map((product) => ({
-        id: product.id,
-        label: `${product.name} (${product.prefix}, ${packLabel(product).toLowerCase()})`,
-        prefix: product.prefix,
-        type: product.type,
-      }))}
-      productId={productId ? Number(productId) : undefined}
-    />
-  );
+  return <AddStockForm initial={initial} />;
 }
 
 export default function NewStockPage({

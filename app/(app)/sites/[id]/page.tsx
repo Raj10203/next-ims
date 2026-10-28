@@ -12,7 +12,7 @@ import { historyHref } from "@/lib/audit";
 import { can, fullName, getCurrentUser } from "@/lib/auth";
 import { formatDate } from "@/lib/format";
 import { getSite, siteAddress } from "@/lib/sites";
-import { inchargeOptions } from "../_components/incharge-options";
+import { inchargePicker } from "../_components/incharge-options";
 import { SiteForm } from "../_components/site-form";
 
 export const metadata: Metadata = { title: "Site" };
@@ -42,7 +42,7 @@ async function SiteDetail({ params }: { params: Promise<{ id: string }> }) {
   const hq = site.type === "hq";
   const update = can(actor.data, "update", "Site");
   const incharges = update
-    ? await inchargeOptions(actor.data, site.incharge)
+    ? await inchargePicker(actor.data, site.incharge)
     : null;
   const links = [
     can(actor.data, "read", "User") && {
@@ -104,7 +104,6 @@ async function SiteDetail({ params }: { params: Promise<{ id: string }> }) {
               state: site.state,
               pincode: site.pincode,
               isActive: site.isActive,
-              inchargeId: site.inchargeId,
             }}
             incharges={incharges}
           />
