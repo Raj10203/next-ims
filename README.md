@@ -2,7 +2,7 @@
 
 Responsive web UI for the IMS (inventory management system). It is a Next.js 16 app that talks to the [nest-ims](../nest-ims) API over HTTP; it has no database of its own.
 
-Status: Docker development setup, code-quality tooling, PR automation, the theme, the app shell, the account flows (sign-in with MFA, set password from an invitation or reset link, forgot password, email verification, MFA on/off on the profile) and screens for every nest-ims module are in place: the dashboard, inventory (items, products, categories), sites, people (users, invitations, roles), the audit log and the profile. Settings is still a placeholder.
+Status: Docker development setup, code-quality tooling, PR automation, the theme, the app shell, the account flows (sign-in with MFA, set password from an invitation or reset link, forgot password, email verification, MFA on/off on the profile) and screens for every nest-ims module are in place: the dashboard, inventory (stock, items, products, categories), logistics (stock requests with their review chain, item movements), sites, people (users, invitations, roles), the audit log and the profile. Settings is still a placeholder.
 
 ## 1. Running it (development)
 
@@ -117,7 +117,7 @@ Each screen has its loading, empty and error states (`components/states.tsx`). *
 
 | Screen | Route | nest-ims calls |
 | --- | --- | --- |
-| Dashboard | `/` | One `limit=1` list call per tile for its total (items, active products, sites, active users, pending invitations; only those the role may read), and the first 100 rows of `GET /items/stock` with a link to the Stock screen |
+| Dashboard | `/` | One `limit=1` list call per tile for its total (requests waiting for the caller's review step, items, active products, sites, active users, pending invitations; only those the role may read), and the first 100 rows of `GET /items/stock` with a link to the Stock screen |
 | Stock | `/inventory` | `GET /items/stock` (unit counts per product, site and status, paged) with `productId`, `categoryId`, `siteId`, `status`; the same filters as Items. Each row opens Items filtered to its product, site and status. The Inventory module opens here |
 | Items | `/inventory/items` | `GET /items` with `search` (code or serial), `productId`, `categoryId`, `siteId`, `status`; product, category and site are search pickers |
 | Add stock | `/inventory/items/new` | The product is a search picker of active products. Several units: `POST /items/bulk { productId, quantity }` (next automatic codes, at most 10 000). One unit: `POST /items` with an optional code suffix, serial number, condition and calibration date. `?productId=` preselects the product |
@@ -133,6 +133,22 @@ Each screen has its loading, empty and error states (`components/states.tsx`). *
 - **Item forms follow the product type**: condition only for non-consumables, calibration date only for calibrated products (a PATCH cannot set either to `null`). Stock is always added at headquarters.
 - **The site in-charge picker** needs `GET /roles` (create User) to find the `site_incharge` role id; without it the field is left out and the API keeps the current in-charge. The API checks that the user is an active in-charge within your scope.
 - **Labels** for product types, units, item statuses and history entries are in `lib/catalog-labels.ts`; a value nest-ims adds later still shows, humanised.
+### Logistics
+
+A site asks headquarters for stock with a **stock request**; HQ reviews it, then a manager approves it (nest-ims `README.md` §1.6.3 has the rules).
+
+| Screen | Route | nest-ims calls |
+| --- | --- | --- |
+| To review | `/logistics` | `GET /stock-requests?awaitingMe=true`: the requests waiting for the caller's step (HQ review for the `stock_request_reviewer` feature role, final approval for managers), oldest first. The module opens here for them |
+| Requests | `/logistics/requests` | `GET /stock-requests` with `status`, `siteId` (a site picker, for roles that read sites), `mine`; site in-charges only ever get their own site's. "New request" for `create StockRequest` |
+| New request | `/logistics/requests/new` | `POST /stock-requests { lines: [{ productId, quantity }], note, neededBy }`: product rows (search pickers of active products) added and removed in the form; `?productId=` fills the first. Then the request opens |
+| Request | `/logistics/requests/[id]` | `GET /stock-requests/:id` (with its lines and `allowed`), `/events` (history) and `/comments` (conversation); approve `POST /:id/approve { lines, note }` (only the changed quantities), reject `POST /:id/reject { note }`, cancel `POST /:id/cancel`, comment or reply `POST /:id/comments { body, parentId }` |
+| Movements | `/logistics/movements` | `GET /items/movements` with `productId`, `siteId`, `action`: every item movement, newest first, each linking to its item |
+
+- **The API decides who may act.** `GET /stock-requests/:id` answers `allowed: { decide, cancel }` from the same rules as the endpoints (the step's permission, never your own request, the reviewer never gives the final approval), so the page shows the decision form or the cancel button only when the call would succeed.
+- **One decision form for both steps**: the quantities are editable, Approve sends only the ones that changed (each becomes a history entry) and nest-ims applies it to whichever step is due. Reject needs a reason; the form says so before calling.
+- **The review progress** (raised, HQ review, manager approval) shows who did each step and when, and where a rejection or cancellation stopped it. Labels and colours for statuses and history entries are in `lib/request-labels.ts`; request numbers read `SR-000042`.
+- **Comments are a ticket thread**: anyone who can see the request comments and replies (one level, as nest-ims stores them), at any status.
 - **Detail pages link to their history** in the audit log (`/audit?entityType=&entityId=`) for roles that may read it.
 
 ## 3. Theme and layout
@@ -153,6 +169,7 @@ Every signed-in screen sits in the `app/(app)` route group, whose layout draws t
 | --- | --- | --- |
 | Dashboard | `/` | none |
 | Inventory | `/inventory` | Stock (`/inventory`), Items (`/inventory/items`, also `/new`, `/[id]`), Products (`/inventory/products`), Categories (`/inventory/categories`) |
+| Logistics | `/logistics` | To review (`/logistics`), Requests (`/logistics/requests`, also `/new`, `/[id]`), Movements (`/logistics/movements`) |
 | Sites | `/sites` | none (also `/sites/new`, `/sites/[id]`) |
 | People | `/people` | Users (also `/people/new`, `/people/[id]`), Invitations (`/people/invitations`), Roles (`/people/roles`) |
 | Audit log | `/audit` | none |
@@ -166,7 +183,7 @@ The account pages are outside the group, in route group `app/(auth)`, with only 
 - **The avatar opens the same account drawer at every size**, so user actions live in one place.
 - **Drawers are native modal `<dialog>`s**: focus stays inside, Esc closes them and focus returns to the button that opened them. Tapping the backdrop or a link closes them too, and the page behind does not scroll.
 - **The active module and tab are found from the URL** (longest matching path, so `/inventory/products` selects Products, not Stock). These parts call `usePathname`, so the layout wraps them in `Suspense`: under Cache Components, a page with an unknown dynamic segment (such as `/inventory/items/[id]`) would otherwise fail to prerender.
-- **Modules and tabs the role cannot use are hidden.** Each link in `lib/navigation.ts` may name the permission it needs (`requires`, as in nest-ims); `components/app-shell/user-nav.tsx` checks it against `GET /auth/me` on the server and passes the links to hide. A module whose tabs are all hidden disappears, and one with some hidden opens on its first visible tab (a site technician's Inventory opens on Products). Hiding only spares dead ends: the pages and the API still check.
+- **Modules and tabs the role cannot use are hidden.** Each link in `lib/navigation.ts` may name the permission it needs (`requires`, as in nest-ims), or a list of which any one will do (To review: `review` or `approve StockRequest`); `components/app-shell/user-nav.tsx` checks it against `GET /auth/me` on the server and passes the links to hide. A module whose tabs are all hidden disappears, and one with some hidden opens on its first visible tab (a site technician's Inventory opens on Products, a site in-charge's Logistics on Requests). Hiding only spares dead ends: the pages and the API still check.
 
 ## 4. Code quality and automation
 
@@ -178,7 +195,7 @@ The account pages are outside the group, in route group `app/(auth)`, with only 
 - **`pr-description` skill** (`.claude/skills/pr-description`): the single source for PR description rules and template (summary, business changes, screens, cross-repo check, release notes). Use it on request locally; the CI *PR description* job loads it too. CI uses the base branch's copy of `.claude/` and `CLAUDE.md`, so changes to them apply from the PR after they merge.
 - **GitHub Actions** (`.github/workflows/claude-code-review.yml`), on every non-draft PR:
   1. *PR description*: rewrites a bot-owned block in the PR body (summary, business changes, screens, cross-repo check, release notes). Text outside the block is kept.
-  2. *Claude review*: posts a review comment with a verdict; the check fails (as a warning, not a merge block) unless it is ✅.
+  2. *Claude review*: posts a review comment with a verdict, then hides the bot's earlier reviews as outdated so only the latest is open; the check fails (as a warning, not a merge block) unless it is ✅.
   3. *Cross-repo check*, part of the review: clones nest-ims (public, so no token) and compares every API call the PR adds or changes with the API, both ways: routes, request fields and validation the API expects, response fields and status codes the UI reads, and guards. It reads that branch's code, never nest-ims pull requests, since one feature can span several backend PRs. Which nest-ims branch is set by a line the author writes in the PR description, outside the bot block:
 
      ```text

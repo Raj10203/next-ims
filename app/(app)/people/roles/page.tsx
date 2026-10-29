@@ -20,12 +20,15 @@ export const metadata: Metadata = { title: "Roles" };
 const summaries: Record<string, string> = {
   super_admin: "Everything, including creating admins.",
   admin:
-    "All users below admin, sites, the catalog, feature roles, stock (read) and the audit log.",
+    "All users below admin, sites, the catalog, feature roles, stock and stock requests (read) and the audit log.",
   manager:
-    "Users they created, sites, the catalog, feature roles and stock (read).",
-  site_incharge: "Users they created; reads the catalog.",
+    "Users they created, sites, the catalog, feature roles and stock (read); gives the final approval of stock requests.",
+  site_incharge:
+    "Users they created; reads the catalog; raises stock requests for their site.",
   site_technician: "Reads their own account and the catalog.",
   stock_manager: "Adds, edits and deletes stock items, whatever the role.",
+  stock_request_reviewer:
+    "Reviews every site's stock requests at HQ, before a manager approves them.",
 };
 
 function RoleList({
