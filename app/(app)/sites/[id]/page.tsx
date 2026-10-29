@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { BackLink } from "@/components/back-link";
 import { DeleteButton } from "@/components/delete-button";
 import { outlineClass } from "@/components/form";
 import { PageHeader } from "@/components/page-header";
+import { PageLayout } from "@/components/page-layout";
 import { DetailList, Section } from "@/components/section";
 import { DetailSkeleton, LoadError, NotFoundState } from "@/components/states";
 import { ActiveBadge, StatusBadge } from "@/components/status-badge";
@@ -12,7 +12,7 @@ import { historyHref } from "@/lib/audit";
 import { can, fullName, getCurrentUser } from "@/lib/auth";
 import { formatDate } from "@/lib/format";
 import { getSite, siteAddress } from "@/lib/sites";
-import { inchargeOptions } from "../_components/incharge-options";
+import { inchargePicker } from "../_components/incharge-options";
 import { SiteForm } from "../_components/site-form";
 
 export const metadata: Metadata = { title: "Site" };
@@ -42,7 +42,7 @@ async function SiteDetail({ params }: { params: Promise<{ id: string }> }) {
   const hq = site.type === "hq";
   const update = can(actor.data, "update", "Site");
   const incharges = update
-    ? await inchargeOptions(actor.data, site.incharge)
+    ? await inchargePicker(actor.data, site.incharge)
     : null;
   const links = [
     can(actor.data, "read", "User") && {
@@ -104,7 +104,6 @@ async function SiteDetail({ params }: { params: Promise<{ id: string }> }) {
               state: site.state,
               pincode: site.pincode,
               isActive: site.isActive,
-              inchargeId: site.inchargeId,
             }}
             incharges={incharges}
           />
@@ -132,11 +131,10 @@ async function SiteDetail({ params }: { params: Promise<{ id: string }> }) {
 
 export default function SitePage({ params }: PageProps<"/sites/[id]">) {
   return (
-    <div className="space-y-6">
-      <BackLink href="/sites" label="Sites" />
+    <PageLayout back={{ href: "/sites", label: "Sites" }}>
       <Suspense fallback={<DetailSkeleton />}>
         <SiteDetail params={params} />
       </Suspense>
-    </div>
+    </PageLayout>
   );
 }

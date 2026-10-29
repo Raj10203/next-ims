@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { BackLink } from "@/components/back-link";
 import { FormMessage } from "@/components/form";
-import { PageHeader } from "@/components/page-header";
+import { PageLayout } from "@/components/page-layout";
 import { FormSkeleton, LoadError } from "@/components/states";
 import { can, getCurrentUser } from "@/lib/auth";
 import { listProducts } from "@/lib/catalog";
-import { packLabel } from "@/lib/catalog-labels";
+import { pickedOption } from "@/lib/picked";
 import { digits } from "@/lib/query";
 import { AddStockForm } from "../_components/add-stock-form";
 
@@ -26,9 +25,13 @@ async function NewStockForm({
     );
   }
 
-  const products = await listProducts({ isActive: "true", limit: "100" });
+  // limit=1: only whether an active product exists; the picker searches.
+  const [products, initial] = await Promise.all([
+    listProducts({ isActive: "true", limit: "1" }),
+    pickedOption("product", productId),
+  ]);
   if (!products.ok) return <LoadError error={products.error} />;
-  if (!products.data.items.length) {
+  if (!products.data.total) {
     return (
       <FormMessage
         tone="info"
@@ -36,34 +39,22 @@ async function NewStockForm({
       />
     );
   }
-  return (
-    <AddStockForm
-      products={products.data.items.map((product) => ({
-        id: product.id,
-        label: `${product.name} (${product.prefix}, ${packLabel(product).toLowerCase()})`,
-        prefix: product.prefix,
-        type: product.type,
-      }))}
-      productId={productId ? Number(productId) : undefined}
-    />
-  );
+  return <AddStockForm initial={initial} />;
 }
 
 export default function NewStockPage({
   searchParams,
 }: PageProps<"/inventory/items/new">) {
   return (
-    <div className="space-y-6">
-      <BackLink href="/inventory/items" label="Items" />
-      <PageHeader
-        title="Add stock"
-        description="New stock arrives at headquarters. Each unit gets its own code for its sticker."
-      />
-      <section className="max-w-3xl rounded-xl border border-border bg-surface p-5 sm:p-6">
-        <Suspense fallback={<FormSkeleton />}>
-          <NewStockForm searchParams={searchParams} />
-        </Suspense>
-      </section>
-    </div>
+    <PageLayout
+      back={{ href: "/inventory/items", label: "Items" }}
+      title="Add stock"
+      description="New stock arrives at headquarters. Each unit gets its own code for its sticker."
+      form
+    >
+      <Suspense fallback={<FormSkeleton />}>
+        <NewStockForm searchParams={searchParams} />
+      </Suspense>
+    </PageLayout>
   );
 }

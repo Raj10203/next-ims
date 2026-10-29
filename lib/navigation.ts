@@ -3,15 +3,19 @@ import {
   LayoutDashboard,
   MapPin,
   Package,
+  Truck,
   Users,
   type LucideIcon,
 } from "lucide-react";
 
-// [action, subject] as in nest-ims permissions; without it, everyone sees it.
+// [action, subject] as in nest-ims permissions, or a list of which any one
+// will do; without it, everyone sees it.
+export type Permission = [action: string, subject: string];
+
 export type NavLink = {
   href: string;
   label: string;
-  requires?: [string, string];
+  requires?: Permission | Permission[];
 };
 
 export type AppModule = NavLink & { icon: LucideIcon; tabs: NavLink[] };
@@ -34,6 +38,31 @@ export const modules: AppModule[] = [
         href: "/inventory/categories",
         label: "Categories",
         requires: ["read", "Category"],
+      },
+    ],
+  },
+  {
+    href: "/logistics",
+    label: "Logistics",
+    icon: Truck,
+    tabs: [
+      {
+        href: "/logistics",
+        label: "To review",
+        requires: [
+          ["review", "StockRequest"],
+          ["approve", "StockRequest"],
+        ],
+      },
+      {
+        href: "/logistics/requests",
+        label: "Requests",
+        requires: ["read", "StockRequest"],
+      },
+      {
+        href: "/logistics/movements",
+        label: "Movements",
+        requires: ["read", "Item"],
       },
     ],
   },

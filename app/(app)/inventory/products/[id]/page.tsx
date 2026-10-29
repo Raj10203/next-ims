@@ -2,11 +2,11 @@ import { Plus } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { BackLink } from "@/components/back-link";
 import { DataList } from "@/components/data-list";
 import { DeleteButton } from "@/components/delete-button";
 import { outlineClass, submitClass } from "@/components/form";
 import { PageHeader } from "@/components/page-header";
+import { PageLayout } from "@/components/page-layout";
 import { DetailList, Section } from "@/components/section";
 import {
   DetailSkeleton,
@@ -17,7 +17,7 @@ import {
 import { ActiveBadge } from "@/components/status-badge";
 import { historyHref } from "@/lib/audit";
 import { can, fullName, getCurrentUser } from "@/lib/auth";
-import { getProduct } from "@/lib/catalog";
+import { getProduct, getProductOptions } from "@/lib/catalog";
 import {
   itemStatusLabel,
   packLabel,
@@ -25,7 +25,7 @@ import {
 } from "@/lib/catalog-labels";
 import { formatDate } from "@/lib/format";
 import { getStock } from "@/lib/items";
-import { productChoices } from "../_components/choices";
+import { toPickerOption } from "@/lib/pickers";
 import { ProductForm } from "../_components/product-form";
 
 export const metadata: Metadata = { title: "Product" };
@@ -63,7 +63,7 @@ async function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
     can(actor.data, "read", "Item")
       ? getStock({ productId: id, limit: "100" })
       : null,
-    update ? productChoices(product.category) : null,
+    update ? getProductOptions() : null,
   ]);
   const rows = stock?.ok
     ? stock.data.items.map((row) => ({
@@ -149,7 +149,7 @@ async function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
               {product.isActive && can(actor.data, "create", "Item") && (
                 <Link
                   href={`/inventory/items/new?productId=${product.id}`}
-                  className={`${submitClass} w-auto`}
+                  className={`${submitClass} sm:w-auto`}
                 >
                   <Plus aria-hidden="true" className="size-4" />
                   Add stock
@@ -191,7 +191,7 @@ async function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
                 id: product.id,
                 name: product.name,
                 prefix: product.prefix,
-                categoryId: product.categoryId,
+                category: toPickerOption("category", product.category),
                 type: product.type,
                 measureType: product.measureType,
                 packSize: product.packSize,
@@ -232,11 +232,10 @@ export default function ProductPage({
   params,
 }: PageProps<"/inventory/products/[id]">) {
   return (
-    <div className="space-y-6">
-      <BackLink href={path} label="Products" />
+    <PageLayout back={{ href: path, label: "Products" }}>
       <Suspense fallback={<DetailSkeleton />}>
         <ProductDetail params={params} />
       </Suspense>
-    </div>
+    </PageLayout>
   );
 }

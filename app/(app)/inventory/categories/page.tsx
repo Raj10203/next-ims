@@ -10,7 +10,7 @@ import {
   SearchFilter,
 } from "@/components/filter-form";
 import { submitClass } from "@/components/form";
-import { PageHeader } from "@/components/page-header";
+import { PageLayout } from "@/components/page-layout";
 import { Pagination } from "@/components/pagination";
 import { EmptyState, ListSkeleton, LoadError } from "@/components/states";
 import { ActiveBadge } from "@/components/status-badge";
@@ -26,7 +26,7 @@ async function AddCategoryLink() {
   const actor = await getCurrentUser();
   if (!actor.ok || !can(actor.data, "create", "Category")) return null;
   return (
-    <Link href={`${path}/new`} className={`${submitClass} w-auto`}>
+    <Link href={`${path}/new`} className={`${submitClass} sm:w-auto`}>
       <Plus aria-hidden="true" className="size-4" />
       Add category
     </Link>
@@ -104,15 +104,17 @@ export default function CategoriesPage({
   searchParams,
 }: PageProps<"/inventory/categories">) {
   return (
-    <div className="space-y-6">
-      <PageHeader title="Categories">
+    <PageLayout
+      title="Categories"
+      actions={
         <Suspense>
           <AddCategoryLink />
         </Suspense>
-      </PageHeader>
+      }
+    >
       <Suspense fallback={<ListSkeleton />}>
         <CategoryList searchParams={searchParams} />
       </Suspense>
-    </div>
+    </PageLayout>
   );
 }

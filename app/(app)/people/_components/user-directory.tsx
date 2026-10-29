@@ -5,7 +5,7 @@ import { Pagination } from "@/components/pagination";
 import { EmptyState, LoadError } from "@/components/states";
 import { can, fullName, getCurrentUser, roleLabel } from "@/lib/auth";
 import { formatDate } from "@/lib/format";
-import { listSites } from "@/lib/sites";
+import { pickedOption } from "@/lib/picked";
 import {
   canManage,
   inviteExpiry,
@@ -34,10 +34,12 @@ export async function UserDirectory({
   const actor = await getCurrentUser();
   if (!actor.ok) return <LoadError error={actor.error} />;
 
-  const [users, roles, sites] = await Promise.all([
+  const [users, roles, site] = await Promise.all([
     listUsers(query),
     can(actor.data, "create", "User") ? listAssignableRoles() : null,
-    can(actor.data, "read", "Site") ? listSites({ limit: "100" }) : null,
+    can(actor.data, "read", "Site")
+      ? pickedOption("site", query.siteId)
+      : undefined,
   ]);
 
   return (
@@ -47,7 +49,7 @@ export async function UserDirectory({
           action={path}
           query={query}
           roles={roles?.ok ? roles.data : null}
-          sites={sites?.ok ? sites.data.items : null}
+          site={site}
           showStatus={!invitations}
         />
         <ListBody>

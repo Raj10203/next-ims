@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { DataList } from "@/components/data-list";
 import { ListBody, ListTransition } from "@/components/list-transition";
 import { FilterForm, SearchFilter } from "@/components/filter-form";
-import { PageHeader } from "@/components/page-header";
+import { PageLayout } from "@/components/page-layout";
 import { Pagination } from "@/components/pagination";
 import { EmptyState, ListSkeleton, LoadError } from "@/components/states";
 import { StatusBadge } from "@/components/status-badge";
@@ -27,7 +27,7 @@ async function ItemList({
 
   const [result, options] = await Promise.all([
     listItems(query),
-    itemFilterOptions(actor.data),
+    itemFilterOptions(actor.data, query),
   ]);
 
   return (
@@ -115,15 +115,17 @@ export default function ItemsPage({
   searchParams,
 }: PageProps<"/inventory/items">) {
   return (
-    <div className="space-y-6">
-      <PageHeader title="Items">
+    <PageLayout
+      title="Items"
+      actions={
         <Suspense>
           <AddStockLink />
         </Suspense>
-      </PageHeader>
+      }
+    >
       <Suspense fallback={<ListSkeleton />}>
         <ItemList searchParams={searchParams} />
       </Suspense>
-    </div>
+    </PageLayout>
   );
 }

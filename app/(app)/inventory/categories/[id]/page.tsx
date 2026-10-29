@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { BackLink } from "@/components/back-link";
 import { DeleteButton } from "@/components/delete-button";
 import { outlineClass } from "@/components/form";
 import { PageHeader } from "@/components/page-header";
+import { PageLayout } from "@/components/page-layout";
 import { DetailList, Section } from "@/components/section";
 import { DetailSkeleton, LoadError, NotFoundState } from "@/components/states";
 import { ActiveBadge } from "@/components/status-badge";
@@ -116,11 +116,10 @@ export default function CategoryPage({
   params,
 }: PageProps<"/inventory/categories/[id]">) {
   return (
-    <div className="space-y-6">
-      <BackLink href={path} label="Categories" />
+    <PageLayout back={{ href: path, label: "Categories" }}>
       <Suspense fallback={<DetailSkeleton />}>
         <CategoryDetail params={params} />
       </Suspense>
-    </div>
+    </PageLayout>
   );
 }

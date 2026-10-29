@@ -348,7 +348,7 @@ jobs:
             Write the comment in Markdown to /tmp/review.md (never inside the repo), then
             post it as ONE new comment with
             `gh pr comment ${{ github.event.pull_request.number }} --body-file /tmp/review.md`.
-            Never edit or delete earlier comments. Use exactly this structure, with a blank
+            Never edit or delete earlier comments (the workflow hides older reviews itself). Use exactly this structure, with a blank
             line between every heading, paragraph and list:
 
             ## Claude review
@@ -430,6 +430,46 @@ jobs:
           jq -r '.[] | select(.type == "result") | .permission_denials[]?
             | "\(.tool_name): \(.tool_input.command // .tool_input.file_path // "")"' \
             "$EXECUTION_FILE" || true
+
+      # Only the latest review stays open: earlier ones are hidden as outdated (still
+      # one click away). Nothing is hidden when no review was posted for this commit.
+      - name: Hide earlier reviews
+        if: ${{ !cancelled() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          short="${SHA:0:7}"
+          gh api graphql -f owner="${GITHUB_REPOSITORY%/*}" -f repo="${GITHUB_REPOSITORY#*/}" -F pr="$PR" -f query='
+            query($owner: String!, $repo: String!, $pr: Int!) {
+              repository(owner: $owner, name: $repo) {
+                pullRequest(number: $pr) {
+                  comments(last: 100) { nodes { id body isMinimized viewerDidAuthor } }
+                }
+              }
+            }' > /tmp/comments.json
+          # viewerDidAuthor: only this bot's reviews, never a person's comment.
+          ids=$(jq -r --arg marker "Reviewed commit \`$short\`" '
+            [.data.repository.pullRequest.comments.nodes[]
+              | select(.viewerDidAuthor and (.body | startswith("## Claude review")))] as $reviews
+            | ([$reviews[] | select(.body | contains($marker))] | last | .id) as $latest
+            | if $latest == null then empty
+              else $reviews[] | select(.isMinimized | not) | select(.id != $latest) | .id end
+          ' /tmp/comments.json)
+          if [ -z "$ids" ]; then
+            echo "Nothing to hide."
+            exit 0
+          fi
+          for id in $ids; do
+            gh api graphql -f id="$id" -f query='
+              mutation($id: ID!) {
+                minimizeComment(input: { subjectId: $id, classifier: OUTDATED }) {
+                  minimizedComment { isMinimized }
+                }
+              }' > /dev/null
+            echo "Hid $id as outdated"
+          done
 
       # Fails (a warning on the PR, not a merge block) unless the review for this
       # commit says ✅. The action itself reports success even when Claude posted nothing.

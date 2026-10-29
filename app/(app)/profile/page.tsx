@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { AvatarForm } from "@/components/avatar-form";
-import { PageHeader } from "@/components/page-header";
+import { PageLayout } from "@/components/page-layout";
 import { DetailList, Section } from "@/components/section";
 import { DetailSkeleton, LoadError } from "@/components/states";
 import { fullName, getCurrentUser, roleLabel } from "@/lib/auth";
@@ -77,11 +77,10 @@ async function Profile() {
 
 export default function ProfilePage() {
   return (
-    <div className="space-y-6">
-      <PageHeader title="My profile" />
+    <PageLayout title="My profile">
       <Suspense fallback={<DetailSkeleton />}>
         <Profile />
       </Suspense>
-    </div>
+    </PageLayout>
   );
 }

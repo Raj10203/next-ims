@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { BackLink } from "@/components/back-link";
 import { DeleteButton } from "@/components/delete-button";
 import { ListBody, ListTransition } from "@/components/list-transition";
 import { outlineClass } from "@/components/form";
 import { PageHeader } from "@/components/page-header";
+import { PageLayout } from "@/components/page-layout";
 import { Pagination } from "@/components/pagination";
 import { DetailList, Section } from "@/components/section";
 import {
@@ -225,11 +225,10 @@ export default function ItemPage({
   searchParams,
 }: PageProps<"/inventory/items/[id]">) {
   return (
-    <div className="space-y-6">
-      <BackLink href="/inventory/items" label="Items" />
+    <PageLayout back={{ href: "/inventory/items", label: "Items" }}>
       <Suspense fallback={<DetailSkeleton />}>
         <ItemDetail params={params} searchParams={searchParams} />
       </Suspense>
-    </div>
+    </PageLayout>
   );
 }

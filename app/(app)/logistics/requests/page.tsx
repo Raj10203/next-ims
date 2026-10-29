@@ -1,0 +1,150 @@
+import { Plus } from "lucide-react";
+import type { Metadata } from "next";
+import Link from "next/link";
+import { Suspense } from "react";
+import { FilterForm } from "@/components/filter-form";
+import { SelectField, submitClass } from "@/components/form";
+import { ListBody, ListTransition } from "@/components/list-transition";
+import { PageLayout } from "@/components/page-layout";
+import { Pagination } from "@/components/pagination";
+import { SearchSelect } from "@/components/search-select";
+import { EmptyState, ListSkeleton, LoadError } from "@/components/states";
+import { can, getCurrentUser } from "@/lib/auth";
+import { pickedOption } from "@/lib/picked";
+import { isFiltered } from "@/lib/query";
+import { requestStatusLabel, requestStatuses } from "@/lib/request-labels";
+import { listRequests, parseRequestQuery } from "@/lib/stock-requests";
+import { RequestList } from "../_components/request-list";
+
+export const metadata: Metadata = { title: "Stock requests" };
+
+const path = "/logistics/requests";
+
+async function NewRequestLink() {
+  const actor = await getCurrentUser();
+  if (
+    !actor.ok ||
+    !(
+      can(actor.data, "create", "StockRequest") ||
+      can(actor.data, "route", "StockRequest")
+    )
+  ) {
+    return null;
+  }
+  return (
+    <Link href={`${path}/new`} className={`${submitClass} sm:w-auto`}>
+      <Plus aria-hidden="true" className="size-4" />
+      New request
+    </Link>
+  );
+}
+
+async function Requests({
+  searchParams,
+}: {
+  searchParams: PageProps<"/logistics/requests">["searchParams"];
+}) {
+  const query = parseRequestQuery(await searchParams);
+  const actor = await getCurrentUser();
+  if (!actor.ok) return <LoadError error={actor.error} />;
+  // Site roles only ever see their own site's requests (nest-ims scopes
+  // them), so the site filter is for HQ.
+  // Drafts only ever show to their own site (nest-ims hides them from HQ).
+  const statuses = can(actor.data, "create", "StockRequest")
+    ? requestStatuses
+    : requestStatuses.filter((status) => status !== "draft");
+  const sites = can(actor.data, "read", "Site");
+  const [result, site, fromSite] = await Promise.all([
+    listRequests(query),
+    sites ? pickedOption("site", query.siteId) : undefined,
+    sites ? pickedOption("site", query.fromSiteId) : undefined,
+  ]);
+
+  return (
+    <ListTransition>
+      <div className="space-y-4">
+        <FilterForm action={path} query={query}>
+          <SelectField
+            id="status"
+            label="Status"
+            defaultValue={query.status ?? ""}
+          >
+            <option value="">All statuses</option>
+            {statuses.map((status) => (
+              <option key={status} value={status}>
+                {requestStatusLabel(status)}
+              </option>
+            ))}
+          </SelectField>
+          {fromSite !== undefined && (
+            <SearchSelect
+              id="fromSiteId"
+              label="From site"
+              kind="site"
+              value={fromSite}
+              emptyLabel="Any site"
+            />
+          )}
+          {site !== undefined && (
+            <SearchSelect
+              id="siteId"
+              label="To site"
+              kind="site"
+              value={site}
+              emptyLabel="Any site"
+            />
+          )}
+          <SelectField
+            id="mine"
+            label="Sent by"
+            defaultValue={query.mine ?? ""}
+          >
+            <option value="">Anyone</option>
+            <option value="true">Me</option>
+          </SelectField>
+        </FilterForm>
+        <ListBody>
+          {!result.ok ? (
+            <LoadError error={result.error} />
+          ) : !result.data.items.length ? (
+            isFiltered(query) || query.page ? (
+              <EmptyState
+                title="No requests match these filters"
+                description="Try other filters or clear them."
+              />
+            ) : (
+              <EmptyState
+                title="No stock requests yet"
+                description="Sites ask headquarters for stock here: a site drafts a request, sends it, and it goes through HQ review and a manager's approval."
+              />
+            )
+          ) : (
+            <>
+              <RequestList rows={result.data.items} />
+              <Pagination path={path} query={query} {...result.data} />
+            </>
+          )}
+        </ListBody>
+      </div>
+    </ListTransition>
+  );
+}
+
+export default function RequestsPage({
+  searchParams,
+}: PageProps<"/logistics/requests">) {
+  return (
+    <PageLayout
+      title="Stock requests"
+      actions={
+        <Suspense>
+          <NewRequestLink />
+        </Suspense>
+      }
+    >
+      <Suspense fallback={<ListSkeleton />}>
+        <Requests searchParams={searchParams} />
+      </Suspense>
+    </PageLayout>
+  );
+}

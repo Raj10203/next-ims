@@ -4,13 +4,13 @@ import { useRouter } from "next/navigation";
 import {
   CheckboxField,
   FormMessage,
-  SelectField,
   SubmitLabel,
   TextField,
   submitClass,
-  type Option,
 } from "@/components/form";
+import { SearchSelect } from "@/components/search-select";
 import { callApi } from "@/lib/client-api";
+import type { PickerOption } from "@/lib/pickers";
 import { useApiForm } from "@/lib/use-api-form";
 import {
   checked,
@@ -39,7 +39,11 @@ export type EditedSite = {
   state: string | null;
   pincode: string | null;
   isActive: boolean;
-  inchargeId: number | null;
+};
+
+export type InchargePicker = {
+  roleId: string;
+  current: PickerOption<"user"> | null;
 };
 
 // incharges is null when the user may not list site in-charges; the field is
@@ -49,7 +53,7 @@ export function SiteForm({
   incharges,
 }: {
   site?: EditedSite;
-  incharges: Option[] | null;
+  incharges: InchargePicker | null;
 }) {
   const router = useRouter();
 
@@ -143,20 +147,16 @@ export function SiteForm({
           error={errors.pincode}
         />
         {incharges && (
-          <SelectField
+          <SearchSelect
             id="inchargeId"
             label="In charge (optional)"
-            defaultValue={site?.inchargeId ?? ""}
+            kind="user"
+            params={{ roleId: incharges.roleId, status: "active" }}
+            value={incharges.current}
+            emptyLabel="Nobody"
             hint="Active users with the site in-charge role."
             error={errors.inchargeId}
-          >
-            <option value="">Nobody</option>
-            {incharges.map((user) => (
-              <option key={user.id} value={user.id}>
-                {user.label}
-              </option>
-            ))}
-          </SelectField>
+          />
         )}
         <div className="sm:col-span-2">
           <CheckboxField

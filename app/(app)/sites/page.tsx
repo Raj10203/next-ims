@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import { DataList } from "@/components/data-list";
 import { ListBody, ListTransition } from "@/components/list-transition";
 import { submitClass } from "@/components/form";
-import { PageHeader } from "@/components/page-header";
+import { PageLayout } from "@/components/page-layout";
 import { Pagination } from "@/components/pagination";
 import { EmptyState, ListSkeleton, LoadError } from "@/components/states";
 import { ActiveBadge, StatusBadge } from "@/components/status-badge";
@@ -18,7 +18,7 @@ async function AddSiteLink() {
   const actor = await getCurrentUser();
   if (!actor.ok || !can(actor.data, "create", "Site")) return null;
   return (
-    <Link href="/sites/new" className={`${submitClass} w-auto`}>
+    <Link href="/sites/new" className={`${submitClass} sm:w-auto`}>
       <Plus aria-hidden="true" className="size-4" />
       Add site
     </Link>
@@ -90,15 +90,17 @@ async function SiteList({
 
 export default function SitesPage({ searchParams }: PageProps<"/sites">) {
   return (
-    <div className="space-y-6">
-      <PageHeader title="Sites">
+    <PageLayout
+      title="Sites"
+      actions={
         <Suspense>
           <AddSiteLink />
         </Suspense>
-      </PageHeader>
+      }
+    >
       <Suspense fallback={<ListSkeleton filters={false} />}>
         <SiteList searchParams={searchParams} />
       </Suspense>
-    </div>
+    </PageLayout>
   );
 }

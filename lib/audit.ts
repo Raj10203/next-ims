@@ -20,6 +20,8 @@ export const auditEntityTypes = [
   "Category",
   "Product",
   "Item",
+  "StockRequest",
+  "StockRequestLine",
 ];
 
 export type AuditLog = {
@@ -65,6 +67,7 @@ export function entityPath(entityType: string, entityId: string) {
     Category: "/inventory/categories",
     Product: "/inventory/products",
     Item: "/inventory/items",
+    StockRequest: "/logistics/requests",
   };
   return base[entityType] ? `${base[entityType]}/${entityId}` : null;
 }

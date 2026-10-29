@@ -1,5 +1,6 @@
 import {
   Boxes,
+  ClipboardCheck,
   MailOpen,
   MapPin,
   Package,
@@ -10,7 +11,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { outlineClass } from "@/components/form";
-import { PageHeader } from "@/components/page-header";
+import { PageLayout } from "@/components/page-layout";
 import { Section } from "@/components/section";
 import { EmptyState, LoadError, TableSkeleton } from "@/components/states";
 import type { ApiResult } from "@/lib/api-result";
@@ -19,6 +20,7 @@ import { listProducts } from "@/lib/catalog";
 import { getStock, listItems } from "@/lib/items";
 import type { Page } from "@/lib/query";
 import { listSites } from "@/lib/sites";
+import { listRequests } from "@/lib/stock-requests";
 import { listUsers } from "@/lib/users";
 import { StockList } from "./_components/stock-list";
 
@@ -46,6 +48,13 @@ async function Tiles() {
   if (!actor.ok) return <LoadError error={actor.error} />;
   const one = { limit: "1" };
   const tiles: Tile[] = [
+    (can(actor.data, "review", "StockRequest") ||
+      can(actor.data, "approve", "StockRequest")) && {
+      label: "Requests to review",
+      href: "/logistics",
+      icon: ClipboardCheck,
+      count: listRequests({ ...one, awaitingMe: "true" }),
+    },
     can(actor.data, "read", "Item") && {
       label: "Items in stock",
       href: "/inventory",
@@ -151,8 +160,7 @@ async function StockOverview() {
 
 export default function DashboardPage() {
   return (
-    <div className="space-y-6">
-      <PageHeader title="Dashboard" />
+    <PageLayout title="Dashboard">
       <Suspense
         fallback={
           <div
@@ -179,6 +187,6 @@ export default function DashboardPage() {
       <Suspense fallback={<TableSkeleton />}>
         <StockOverview />
       </Suspense>
-    </div>
+    </PageLayout>
   );
 }

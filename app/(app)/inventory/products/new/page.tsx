@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { BackLink } from "@/components/back-link";
 import { FormMessage } from "@/components/form";
-import { PageHeader } from "@/components/page-header";
+import { PageLayout } from "@/components/page-layout";
 import { FormSkeleton, LoadError } from "@/components/states";
 import { can, getCurrentUser } from "@/lib/auth";
-import { productChoices } from "../_components/choices";
+import { getProductOptions, listCategories } from "@/lib/catalog";
 import { ProductForm } from "../_components/product-form";
 
 export const metadata: Metadata = { title: "Add product" };
@@ -16,9 +15,14 @@ async function NewProductForm() {
   if (!can(actor.data, "create", "Product")) {
     return <FormMessage message="Your role cannot add products." />;
   }
-  const choices = await productChoices();
+  // limit=1: only whether an active category exists; the picker searches.
+  const [choices, categories] = await Promise.all([
+    getProductOptions(),
+    listCategories({ isActive: "true", limit: "1" }),
+  ]);
   if (!choices.ok) return <LoadError error={choices.error} />;
-  if (!choices.data.categories.length) {
+  if (!categories.ok) return <LoadError error={categories.error} />;
+  if (!categories.data.total) {
     return (
       <FormMessage
         tone="info"
@@ -31,17 +35,15 @@ async function NewProductForm() {
 
 export default function NewProductPage() {
   return (
-    <div className="space-y-6">
-      <BackLink href="/inventory/products" label="Products" />
-      <PageHeader
-        title="Add product"
-        description="What can be stocked. Items, each with its own code, are added to it afterwards."
-      />
-      <section className="max-w-3xl rounded-xl border border-border bg-surface p-5 sm:p-6">
-        <Suspense fallback={<FormSkeleton />}>
-          <NewProductForm />
-        </Suspense>
-      </section>
-    </div>
+    <PageLayout
+      back={{ href: "/inventory/products", label: "Products" }}
+      title="Add product"
+      description="What can be stocked. Items, each with its own code, are added to it afterwards."
+      form
+    >
+      <Suspense fallback={<FormSkeleton />}>
+        <NewProductForm />
+      </Suspense>
+    </PageLayout>
   );
 }

@@ -10,8 +10,8 @@ import {
   TextAreaField,
   TextField,
   submitClass,
-  type Option,
 } from "@/components/form";
+import { SearchSelect } from "@/components/search-select";
 import {
   measureTypeLabel,
   packUnitLabel,
@@ -19,6 +19,7 @@ import {
   productTypeLabel,
 } from "@/lib/catalog-labels";
 import { callApi } from "@/lib/client-api";
+import type { PickerOption } from "@/lib/pickers";
 import { useApiForm } from "@/lib/use-api-form";
 import {
   checked,
@@ -44,7 +45,8 @@ export type EditedProduct = {
   id: number;
   name: string;
   prefix: string;
-  categoryId: number;
+  // Kept even when deactivated: the picker only finds active ones.
+  category: PickerOption<"category">;
   type: string;
   measureType: string;
   packSize: number | null;
@@ -58,7 +60,6 @@ export type ProductChoices = {
   types: string[];
   measureTypes: string[];
   packUnits: string[];
-  categories: Option[];
 };
 
 // The field rules of product-rules.ts in nest-ims: only consumables may be
@@ -153,22 +154,17 @@ export function ProductForm({
           hint="2–10 letters or digits. Item codes start with it: DRL-000001."
           error={errors.prefix}
         />
-        <SelectField
+        <SearchSelect
           id="categoryId"
           label="Category"
           required
-          defaultValue={product?.categoryId ?? ""}
+          kind="category"
+          params={{ isActive: "true" }}
+          value={product?.category}
+          placeholder="Choose a category"
+          hint="Active categories."
           error={errors.categoryId}
-        >
-          <option value="" disabled>
-            Choose a category
-          </option>
-          {choices.categories.map((category) => (
-            <option key={category.id} value={category.id}>
-              {category.label}
-            </option>
-          ))}
-        </SelectField>
+        />
         <SelectField
           id="type"
           label="Type"
