@@ -20,10 +20,12 @@ export function RequestStatusBadge({ status }: { status: string }) {
 const contents = (row: RequestRow) =>
   `${row.lineCount} ${row.lineCount === 1 ? "product" : "products"}, ${row.totalQuantity} units`;
 
-const raised = (row: RequestRow) =>
-  row.requestedBy
-    ? `${formatDate(row.createdAt)} by ${fullName(row.requestedBy)}`
-    : formatDate(row.createdAt);
+const sent = (row: RequestRow) =>
+  !row.requestedAt
+    ? "Not sent yet"
+    : row.requestedBy
+      ? `${formatDate(row.requestedAt)} by ${fullName(row.requestedBy)}`
+      : formatDate(row.requestedAt);
 
 export function RequestList({ rows }: { rows: RequestRow[] }) {
   return (
@@ -40,7 +42,7 @@ export function RequestList({ rows }: { rows: RequestRow[] }) {
         subtitle: contents(row),
         badge: <RequestStatusBadge status={row.status} />,
         meta: [
-          `Raised ${raised(row)}`,
+          row.requestedAt ? `Sent ${sent(row)}` : sent(row),
           row.neededBy && `needed by ${formatDate(row.neededBy)}`,
         ]
           .filter(Boolean)
@@ -55,7 +57,7 @@ export function RequestList({ rows }: { rows: RequestRow[] }) {
         },
         { header: "Site", cell: (row) => row.site.name },
         { header: "Contents", cell: contents },
-        { header: "Raised", cell: raised },
+        { header: "Sent", cell: sent },
         {
           header: "Needed by",
           cell: (row) => (row.neededBy ? formatDate(row.neededBy) : "—"),

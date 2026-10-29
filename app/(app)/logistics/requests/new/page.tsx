@@ -21,7 +21,7 @@ async function NewRequestForm({
   if (!actor.ok) return <LoadError error={actor.error} />;
   if (!can(actor.data, "create", "StockRequest")) {
     return (
-      <FormMessage message="Stock requests are raised by site in-charges." />
+      <FormMessage message="Stock requests are raised by site employees, for their own site." />
     );
   }
   return <RequestForm initial={await pickedOption("product", productId)} />;
@@ -35,7 +35,7 @@ export default function NewRequestPage({
       <BackLink href="/logistics/requests" label="Stock requests" />
       <PageHeader
         title="New stock request"
-        description="For your site. Headquarters reviews it first, then a manager approves it; either may change the quantities."
+        description="Ask headquarters for stock for your site. Save it as a draft for your site to finish, or send it: HQ reviews it, then a manager approves it, and either may change the quantities."
       />
       <section className="max-w-3xl rounded-xl border border-border bg-surface p-5 sm:p-6">
         <Suspense fallback={<FormSkeleton />}>

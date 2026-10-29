@@ -41,6 +41,10 @@ async function Requests({
   if (!actor.ok) return <LoadError error={actor.error} />;
   // Site roles only ever see their own site's requests (nest-ims scopes
   // them), so the site filter is for HQ.
+  // Drafts only ever show to their own site (nest-ims hides them from HQ).
+  const statuses = can(actor.data, "create", "StockRequest")
+    ? requestStatuses
+    : requestStatuses.filter((status) => status !== "draft");
   const [result, site] = await Promise.all([
     listRequests(query),
     can(actor.data, "read", "Site")
@@ -58,7 +62,7 @@ async function Requests({
             defaultValue={query.status ?? ""}
           >
             <option value="">All statuses</option>
-            {requestStatuses.map((status) => (
+            {statuses.map((status) => (
               <option key={status} value={status}>
                 {requestStatusLabel(status)}
               </option>
@@ -75,7 +79,7 @@ async function Requests({
           )}
           <SelectField
             id="mine"
-            label="Raised by"
+            label="Sent by"
             defaultValue={query.mine ?? ""}
           >
             <option value="">Anyone</option>
@@ -94,7 +98,7 @@ async function Requests({
             ) : (
               <EmptyState
                 title="No stock requests yet"
-                description="Sites ask headquarters for stock here; each request goes through HQ review and a manager's approval."
+                description="Sites ask headquarters for stock here: a site drafts a request, sends it, and it goes through HQ review and a manager's approval."
               />
             )
           ) : (

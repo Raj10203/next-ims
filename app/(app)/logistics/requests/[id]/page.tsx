@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { Avatar } from "@/components/avatar";
 import { BackLink } from "@/components/back-link";
 import { DataList } from "@/components/data-list";
+import { DeleteButton } from "@/components/delete-button";
 import { outlineClass } from "@/components/form";
 import { PageHeader } from "@/components/page-header";
 import { DetailList, Section } from "@/components/section";
@@ -18,7 +19,12 @@ import { historyHref } from "@/lib/audit";
 import { can, fullName, getCurrentUser } from "@/lib/auth";
 import { packLabel } from "@/lib/catalog-labels";
 import { formatDate, formatDateTime } from "@/lib/format";
-import { requestCode, requestEventLabel } from "@/lib/request-labels";
+import { toPickerOption } from "@/lib/pickers";
+import {
+  deliveryStatuses,
+  requestCode,
+  requestEventLabel,
+} from "@/lib/request-labels";
 import type { PersonSummary } from "@/lib/sites";
 import {
   getRequest,
@@ -31,6 +37,8 @@ import { RequestStatusBadge } from "../../_components/request-list";
 import { CancelRequest } from "../_components/cancel-request";
 import { CommentForm, ReplyButton } from "../_components/comment-form";
 import { DecisionForm } from "../_components/decision-form";
+import { RequestForm } from "../_components/request-form";
+import { RequestRoute } from "../_components/request-route";
 
 export const metadata: Metadata = { title: "Stock request" };
 
@@ -43,7 +51,7 @@ type Step = {
   detail?: string;
 };
 
-// The review chain as the requester sees it: raised, HQ review, manager
+// The review chain as the requester sees it: sent, HQ review, manager
 // approval. A rejection or cancellation stops it at the step it reached.
 function steps(request: RequestDetail): Step[] {
   const closed =
@@ -55,11 +63,15 @@ function steps(request: RequestDetail): Step[] {
       ? `${request.status === "rejected" ? "Rejected" : "Cancelled"} by ${byWhom(request.closedBy, request.closedAt)}`
       : undefined;
   return [
-    {
-      label: "Raised",
-      state: "done",
-      detail: byWhom(request.requestedBy, request.createdAt),
-    },
+    request.requestedAt
+      ? {
+          label: "Sent to HQ",
+          state: "done",
+          detail: byWhom(request.requestedBy, request.requestedAt),
+        }
+      : request.status === "draft"
+        ? { label: "Sent to HQ", state: "current", detail: "Draft, not sent" }
+        : { label: "Sent to HQ", state: "done" },
     request.reviewedAt
       ? {
           label: "HQ review",
@@ -198,6 +210,8 @@ async function RequestView({
   const request = result.data;
   const productLabel = (line: RequestDetail["lines"][number]) =>
     `${line.product.name} (${line.product.prefix})`;
+  const draft = request.status === "draft";
+  const delivery = deliveryStatuses.includes(request.status);
   const top = comments.ok
     ? comments.data.filter((comment) => comment.parentId === null)
     : [];
@@ -211,6 +225,15 @@ async function RequestView({
         <span className="flex flex-wrap items-center gap-3">
           <RequestStatusBadge status={request.status} />
           {request.allowed.cancel && <CancelRequest requestId={request.id} />}
+          {draft && request.allowed.edit && (
+            <DeleteButton
+              path={`/stock-requests/${request.id}`}
+              title="Discard this draft?"
+              description="The draft and its comments are removed for everyone at your site. This cannot be undone."
+              label="Discard draft"
+              redirectTo="/logistics/requests"
+            />
+          )}
         </span>
       </PageHeader>
 
@@ -221,7 +244,15 @@ async function RequestView({
       <Section id="overview" title="Overview">
         <DetailList
           rows={[
-            ["Site", request.site.name],
+            ["Route", <RequestRoute key="route" to={request.site.name} />],
+            [
+              "Requester",
+              request.requestedBy
+                ? fullName(request.requestedBy)
+                : draft
+                  ? "Whoever sends the draft"
+                  : "Removed user",
+            ],
             [
               "Needed by",
               request.neededBy ? formatDate(request.neededBy) : "Not given",
@@ -245,20 +276,36 @@ async function RequestView({
         id="products"
         title="Products"
         description={
-          request.allowed.decide
-            ? request.status === "pending_approval"
-              ? "Approved at HQ review. Check the quantities and give the final approval, or reject."
-              : "Check the quantities and approve for the manager, or reject."
-            : undefined
+          request.allowed.edit
+            ? "Anyone at your site can change this draft until it is sent."
+            : request.allowed.decide
+              ? request.status === "pending_approval"
+                ? "Approved at HQ review. Check the quantities and give the final approval, or reject."
+                : "Check the quantities and approve for the manager, or reject."
+              : undefined
         }
       >
-        {request.allowed.decide ? (
+        {request.allowed.edit ? (
+          <RequestForm
+            draft={{
+              id: request.id,
+              note: request.note,
+              neededBy: request.neededBy,
+              lines: request.lines.map((line) => ({
+                product: toPickerOption("product", line.product),
+                quantity: line.quantity,
+                note: line.note,
+              })),
+            }}
+          />
+        ) : request.allowed.decide ? (
           <DecisionForm
             requestId={request.id}
             finalStep={request.status === "pending_approval"}
             lines={request.lines.map((line) => ({
               id: line.id,
               product: productLabel(line),
+              note: line.note,
               requestedQuantity: line.requestedQuantity,
               quantity: line.quantity,
             }))}
@@ -268,19 +315,33 @@ async function RequestView({
             rows={request.lines}
             card={(line) => ({
               title: productLabel(line),
-              subtitle: packLabel(line.product),
+              subtitle: line.note ?? packLabel(line.product),
               badge: (
                 <span className="font-semibold tabular-nums">
                   {line.quantity}
                 </span>
               ),
               meta:
-                line.quantity !== line.requestedQuantity
-                  ? `Asked for ${line.requestedQuantity}`
-                  : undefined,
+                [
+                  line.quantity !== line.requestedQuantity &&
+                    `Asked for ${line.requestedQuantity}`,
+                  delivery && `${line.received} received`,
+                ]
+                  .filter(Boolean)
+                  .join(" · ") || undefined,
             })}
             columns={[
-              { header: "Product", cell: productLabel },
+              {
+                header: "Product",
+                cell: (line) => (
+                  <>
+                    {productLabel(line)}
+                    {line.note && (
+                      <span className="block text-muted">{line.note}</span>
+                    )}
+                  </>
+                ),
+              },
               { header: "Unit", cell: (line) => packLabel(line.product) },
               {
                 header: "Asked",
@@ -292,6 +353,16 @@ async function RequestView({
                 cell: (line) => line.quantity,
                 align: "right",
               },
+              ...(delivery
+                ? [
+                    {
+                      header: "Received",
+                      cell: (line: RequestDetail["lines"][number]) =>
+                        line.received,
+                      align: "right" as const,
+                    },
+                  ]
+                : []),
             ]}
           />
         )}
@@ -300,7 +371,11 @@ async function RequestView({
       <Section
         id="conversation"
         title="Conversation"
-        description="Everyone who can see the request can comment and reply."
+        description={
+          draft
+            ? "Your site's employees can talk the draft over here. Nobody is notified until it is sent."
+            : `${request.site.name} and HQ can comment and reply. ${request.requestedBy ? fullName(request.requestedBy) : "The requester"}, who sent the request, is notified of each comment.`
+        }
       >
         <div className="space-y-6">
           {!comments.ok ? (

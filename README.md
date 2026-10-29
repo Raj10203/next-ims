@@ -2,7 +2,7 @@
 
 Responsive web UI for the IMS (inventory management system). It is a Next.js 16 app that talks to the [nest-ims](../nest-ims) API over HTTP; it has no database of its own.
 
-Status: Docker development setup, code-quality tooling, PR automation, the theme, the app shell, the account flows (sign-in with MFA, set password from an invitation or reset link, forgot password, email verification, MFA on/off on the profile) and screens for every nest-ims module are in place: the dashboard, inventory (stock, items, products, categories), logistics (stock requests with their review chain, item movements), sites, people (users, invitations, roles), the audit log and the profile. Settings is still a placeholder.
+Status: Docker development setup, code-quality tooling, PR automation, the theme, the app shell, the account flows (sign-in with MFA, set password from an invitation or reset link, forgot password, email verification, MFA on/off on the profile) and screens for every nest-ims module are in place: the dashboard, inventory (stock, items, products, categories), logistics (stock requests drafted by a site, then their review chain; item movements), sites, people (users, invitations, roles), the audit log and the profile. Settings is still a placeholder.
 
 ## 1. Running it (development)
 
@@ -135,20 +135,22 @@ Each screen has its loading, empty and error states (`components/states.tsx`). *
 - **Labels** for product types, units, item statuses and history entries are in `lib/catalog-labels.ts`; a value nest-ims adds later still shows, humanised.
 ### Logistics
 
-A site asks headquarters for stock with a **stock request**; HQ reviews it, then a manager approves it (nest-ims `README.md` §1.6.3 has the rules).
+A site asks headquarters for stock with a **stock request**: the site drafts it, someone there sends it, HQ reviews it, then a manager approves it (nest-ims `README.md` §1.6.3 has the rules).
 
 | Screen | Route | nest-ims calls |
 | --- | --- | --- |
 | To review | `/logistics` | `GET /stock-requests?awaitingMe=true`: the requests waiting for the caller's step (HQ review for the `stock_request_reviewer` feature role, final approval for managers), oldest first. The module opens here for them |
-| Requests | `/logistics/requests` | `GET /stock-requests` with `status`, `siteId` (a site picker, for roles that read sites), `mine`; site in-charges only ever get their own site's. "New request" for `create StockRequest` |
-| New request | `/logistics/requests/new` | `POST /stock-requests { lines: [{ productId, quantity }], note, neededBy }`: product rows (search pickers of active products) added and removed in the form; `?productId=` fills the first. Then the request opens |
-| Request | `/logistics/requests/[id]` | `GET /stock-requests/:id` (with its lines and `allowed`), `/events` (history) and `/comments` (conversation); approve `POST /:id/approve { lines, note }` (only the changed quantities), reject `POST /:id/reject { note }`, cancel `POST /:id/cancel`, comment or reply `POST /:id/comments { body, parentId }` |
+| Requests | `/logistics/requests` | `GET /stock-requests` with `status`, `siteId` (a site picker, for roles that read sites), `mine` ("Sent by me"); site roles only ever get their own site's, drafts included, and nobody else ever gets a draft (so the Draft status filter shows only to roles that can create requests). "New request" for `create StockRequest` (every site employee) |
+| New request | `/logistics/requests/new` | `POST /stock-requests { lines: [{ productId, quantity, note }], note, neededBy, submit }`: product rows (search pickers of active products, each with an optional note) added and removed in the form; `?productId=` fills the first. The route is shown, not chosen: always headquarters to the user's own site. "Save draft" sends `submit: false`, "Send to HQ" `true`. Then the request opens |
+| Request | `/logistics/requests/[id]` | `GET /stock-requests/:id` (with its lines and `allowed`), `/events` (history) and `/comments` (conversation); a draft is edited in place with the same form (`PATCH /:id`, the whole request) and discarded with `DELETE /:id`; approve `POST /:id/approve { lines, note }` (only the changed quantities), reject `POST /:id/reject { note }`, cancel `POST /:id/cancel`, comment or reply `POST /:id/comments { body, parentId }` |
 | Movements | `/logistics/movements` | `GET /items/movements` with `productId`, `siteId`, `action`: every item movement, newest first, each linking to its item |
 
-- **The API decides who may act.** `GET /stock-requests/:id` answers `allowed: { decide, cancel }` from the same rules as the endpoints (the step's permission, never your own request, the reviewer never gives the final approval), so the page shows the decision form or the cancel button only when the call would succeed.
+- **The API decides who may act.** `GET /stock-requests/:id` answers `allowed: { decide, edit, cancel }` from the same rules as the endpoints (a draft is edited by its site; the step's permission, never your own request, the reviewer never gives the final approval; only the requester cancels), so the page shows the draft form, the decision form or the cancel button only when the call would succeed.
+- **Drafts and the requester.** A draft belongs to its site: any employee there may change, send or discard it, and HQ cannot see it. Whoever sends it becomes the requester for good: after that the site only reads and comments, and nest-ims notifies only the requester of comments. HQ may still change quantities while deciding; the site's part ends with receiving the stock.
 - **One decision form for both steps**: the quantities are editable, Approve sends only the ones that changed (each becomes a history entry) and nest-ims applies it to whichever step is due. Reject needs a reason; the form says so before calling.
-- **The review progress** (raised, HQ review, manager approval) shows who did each step and when, and where a rejection or cancellation stopped it. Labels and colours for statuses and history entries are in `lib/request-labels.ts`; request numbers read `SR-000042`.
-- **Comments are a ticket thread**: anyone who can see the request comments and replies (one level, as nest-ims stores them), at any status.
+- **The review progress** (sent, or still a draft; HQ review; manager approval) shows who did each step and when, and where a rejection or cancellation stopped it. Labels and colours for statuses and history entries are in `lib/request-labels.ts`; request numbers read `SR-000042`.
+- **Comments are a ticket thread**: anyone who can see the request comments and replies (one level, as nest-ims stores them), at any status. On a draft that is only the site; the page says who gets notified.
+- **Line notes** (what the site wrote per product) show under the product name, also in the decision form, and once HQ delivers, each line shows what was received.
 - **Detail pages link to their history** in the audit log (`/audit?entityType=&entityId=`) for roles that may read it.
 
 ## 3. Theme and layout

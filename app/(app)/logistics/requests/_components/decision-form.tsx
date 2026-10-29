@@ -14,6 +14,7 @@ import { field, optionalField } from "@/lib/use-form-submit";
 export type DecisionLine = {
   id: number;
   product: string;
+  note: string | null;
   requestedQuantity: number;
   quantity: number;
 };
@@ -96,7 +97,12 @@ export function DecisionForm({
           <tbody className="divide-y divide-border">
             {lines.map((line) => (
               <tr key={line.id}>
-                <td className="px-4 py-3">{line.product}</td>
+                <td className="px-4 py-3">
+                  {line.product}
+                  {line.note && (
+                    <span className="block text-muted">{line.note}</span>
+                  )}
+                </td>
                 <td className="px-4 py-3 text-right tabular-nums">
                   {line.requestedQuantity}
                 </td>

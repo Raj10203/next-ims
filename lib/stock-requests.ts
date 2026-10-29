@@ -22,7 +22,9 @@ export type StockRequest = {
   // "YYYY-MM-DD"
   neededBy: string | null;
   createdAt: string;
+  // Who sent it to HQ, and when; null while a draft.
   requestedBy: PersonSummary | null;
+  requestedAt: string | null;
   reviewedBy: PersonSummary | null;
   reviewedAt: string | null;
   approvedBy: PersonSummary | null;
@@ -42,12 +44,17 @@ export type RequestLine = {
   product: Omit<Product, "category" | "createdBy">;
   requestedQuantity: number;
   quantity: number;
+  note: string | null;
+  // Counted from packages by nest-ims.
+  received: number;
+  inFlight: number;
+  remaining: number;
 };
 
 // allowed comes from nest-ims, which applies the review chain's rules.
 export type RequestDetail = StockRequest & {
   lines: RequestLine[];
-  allowed: { decide: boolean; cancel: boolean };
+  allowed: { decide: boolean; edit: boolean; cancel: boolean; close: boolean };
 };
 
 export type RequestEvent = {
