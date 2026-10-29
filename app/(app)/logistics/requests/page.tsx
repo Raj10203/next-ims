@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import { FilterForm } from "@/components/filter-form";
 import { SelectField, submitClass } from "@/components/form";
 import { ListBody, ListTransition } from "@/components/list-transition";
-import { PageHeader } from "@/components/page-header";
+import { PageLayout } from "@/components/page-layout";
 import { Pagination } from "@/components/pagination";
 import { SearchSelect } from "@/components/search-select";
 import { EmptyState, ListSkeleton, LoadError } from "@/components/states";
@@ -22,9 +22,17 @@ const path = "/logistics/requests";
 
 async function NewRequestLink() {
   const actor = await getCurrentUser();
-  if (!actor.ok || !can(actor.data, "create", "StockRequest")) return null;
+  if (
+    !actor.ok ||
+    !(
+      can(actor.data, "create", "StockRequest") ||
+      can(actor.data, "route", "StockRequest")
+    )
+  ) {
+    return null;
+  }
   return (
-    <Link href={`${path}/new`} className={`${submitClass} w-auto`}>
+    <Link href={`${path}/new`} className={`${submitClass} sm:w-auto`}>
       <Plus aria-hidden="true" className="size-4" />
       New request
     </Link>
@@ -45,11 +53,11 @@ async function Requests({
   const statuses = can(actor.data, "create", "StockRequest")
     ? requestStatuses
     : requestStatuses.filter((status) => status !== "draft");
-  const [result, site] = await Promise.all([
+  const sites = can(actor.data, "read", "Site");
+  const [result, site, fromSite] = await Promise.all([
     listRequests(query),
-    can(actor.data, "read", "Site")
-      ? pickedOption("site", query.siteId)
-      : undefined,
+    sites ? pickedOption("site", query.siteId) : undefined,
+    sites ? pickedOption("site", query.fromSiteId) : undefined,
   ]);
 
   return (
@@ -68,13 +76,22 @@ async function Requests({
               </option>
             ))}
           </SelectField>
+          {fromSite !== undefined && (
+            <SearchSelect
+              id="fromSiteId"
+              label="From site"
+              kind="site"
+              value={fromSite}
+              emptyLabel="Any site"
+            />
+          )}
           {site !== undefined && (
             <SearchSelect
               id="siteId"
-              label="Site"
+              label="To site"
               kind="site"
               value={site}
-              emptyLabel="All sites"
+              emptyLabel="Any site"
             />
           )}
           <SelectField
@@ -117,15 +134,17 @@ export default function RequestsPage({
   searchParams,
 }: PageProps<"/logistics/requests">) {
   return (
-    <div className="space-y-6">
-      <PageHeader title="Stock requests">
+    <PageLayout
+      title="Stock requests"
+      actions={
         <Suspense>
           <NewRequestLink />
         </Suspense>
-      </PageHeader>
+      }
+    >
       <Suspense fallback={<ListSkeleton />}>
         <Requests searchParams={searchParams} />
       </Suspense>
-    </div>
+    </PageLayout>
   );
 }

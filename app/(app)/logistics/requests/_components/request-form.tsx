@@ -17,7 +17,8 @@ import { callApi } from "@/lib/client-api";
 import type { PickerOption } from "@/lib/pickers";
 import { useApiForm } from "@/lib/use-api-form";
 import { optionalField } from "@/lib/use-form-submit";
-import { RequestRoute } from "./request-route";
+import { RequestRoute } from "../../_components/request-route";
+import { RouteFields, type RouteValue } from "./route-fields";
 
 // The limits of createStockRequestSchema in nest-ims.
 const MAX_LINES = 50;
@@ -41,15 +42,24 @@ export type Draft = {
   neededBy: string | null;
 };
 
-// Both buttons save; "send" also hands the request to HQ review.
+// A site employee's request: both buttons save; "send" also hands it to HQ
+// review. With routing (HQ: route StockRequest), HQ chooses both sites and an
+// assignee, and nest-ims approves it at once, so there is no draft.
 export function RequestForm({
   draft,
   initial = null,
+  routing = false,
 }: {
   draft?: Draft;
   initial?: PickerOption<"product"> | null;
+  routing?: boolean;
 }) {
   const router = useRouter();
+  const [route, setRoute] = useState<RouteValue>({
+    from: null,
+    to: null,
+    assignee: null,
+  });
   const [lines, setLines] = useState<Line[]>(() =>
     draft
       ? draft.lines.map((line, key) => ({
@@ -72,6 +82,9 @@ export function RequestForm({
     "lines",
     "note",
     "neededBy",
+    "fromSiteId",
+    "siteId",
+    "assigneeId",
     ...lines.flatMap((_, index) => [
       `lines.${index}.productId`,
       `lines.${index}.quantity`,
@@ -90,6 +103,11 @@ export function RequestForm({
         note: optionalField(form, "note"),
         neededBy: optionalField(form, "neededBy"),
         submit: intent === "send",
+        ...(routing && {
+          fromSiteId: route.from?.id ?? null,
+          siteId: route.to?.id ?? null,
+          assigneeId: route.assignee?.id ?? null,
+        }),
       };
       return draft
         ? callApi<{ id: number }>(`/stock-requests/${draft.id}`, {
@@ -113,11 +131,23 @@ export function RequestForm({
     <form onSubmit={onSubmit} className="space-y-6">
       <FormMessage message={state.message} tone={state.tone} />
 
-      {!draft && (
-        <div className="rounded-lg bg-surface-muted p-3 text-sm">
-          <p className="font-medium">Route</p>
-          <RequestRoute to="Your site" />
-        </div>
+      {routing ? (
+        <fieldset className="space-y-4">
+          <legend className="text-sm font-medium">Route</legend>
+          <RouteFields
+            initial={route}
+            onChange={setRoute}
+            fromDefault="Headquarters"
+            errors={errors}
+          />
+        </fieldset>
+      ) : (
+        !draft && (
+          <div className="rounded-lg bg-surface-muted p-3 text-sm">
+            <p className="font-medium">Route</p>
+            <RequestRoute from="Headquarters" to="Your site" />
+          </div>
+        )
       )}
 
       <fieldset className="space-y-4">
@@ -229,13 +259,12 @@ export function RequestForm({
         </div>
       </div>
 
-      <div className="space-y-3">
-        <p className="text-sm text-muted">
-          A draft stays with your site, and anyone there can change it. Once
-          sent, it can no longer be changed, and you become its requester:
-          comments on it are sent to you.
-        </p>
-        <div className="flex flex-col gap-3 sm:flex-row">
+      {routing ? (
+        <div className="space-y-3">
+          <p className="text-sm text-muted">
+            It is approved at once and goes straight to packing at the sending
+            site. Its sites and assignee can change until it is packed.
+          </p>
           <button
             type="submit"
             name="intent"
@@ -245,21 +274,44 @@ export function RequestForm({
           >
             <SubmitLabel
               pending={pending}
-              label="Send to HQ"
-              pendingLabel="Saving…"
+              label="Create approved request"
+              pendingLabel="Creating…"
             />
           </button>
-          <button
-            type="submit"
-            name="intent"
-            value="draft"
-            disabled={pending}
-            className={`${outlineClass} w-full sm:w-auto`}
-          >
-            Save draft
-          </button>
         </div>
-      </div>
+      ) : (
+        <div className="space-y-3">
+          <p className="text-sm text-muted">
+            A draft stays with your site, and anyone there can change it. Once
+            sent, it can no longer be changed, and you become its requester:
+            comments on it are sent to you.
+          </p>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <button
+              type="submit"
+              name="intent"
+              value="send"
+              disabled={pending}
+              className={`${submitClass} sm:w-auto`}
+            >
+              <SubmitLabel
+                pending={pending}
+                label="Send to HQ"
+                pendingLabel="Saving…"
+              />
+            </button>
+            <button
+              type="submit"
+              name="intent"
+              value="draft"
+              disabled={pending}
+              className={`${outlineClass} w-full sm:w-auto`}
+            >
+              Save draft
+            </button>
+          </div>
+        </div>
+      )}
     </form>
   );
 }

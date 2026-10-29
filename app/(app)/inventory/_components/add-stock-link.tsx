@@ -7,7 +7,7 @@ export async function AddStockLink() {
   const actor = await getCurrentUser();
   if (!actor.ok || !can(actor.data, "create", "Item")) return null;
   return (
-    <Link href="/inventory/items/new" className={`${submitClass} w-auto`}>
+    <Link href="/inventory/items/new" className={`${submitClass} sm:w-auto`}>
       <Plus aria-hidden="true" className="size-4" />
       Add stock
     </Link>

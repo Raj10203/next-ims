@@ -4,7 +4,7 @@ import { FormMessage } from "@/components/form";
 import { FormSkeleton } from "@/components/states";
 import { can, getCurrentUser } from "@/lib/auth";
 import { listAssignableRoles, siteChoice } from "@/lib/users";
-import { BackLink } from "@/components/back-link";
+import { PageLayout } from "@/components/page-layout";
 import { roleOptions } from "../_components/options";
 import { UserForm } from "../_components/user-form";
 
@@ -27,21 +27,15 @@ async function NewUserForm() {
 
 export default function NewUserPage() {
   return (
-    <div className="space-y-6">
-      <BackLink href="/people" label="Users" />
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-          Add user
-        </h1>
-        <p className="mt-1 text-muted">
-          They get an email with a link to set their password.
-        </p>
-      </div>
-      <section className="max-w-3xl rounded-xl border border-border bg-surface p-5 sm:p-6">
-        <Suspense fallback={<FormSkeleton />}>
-          <NewUserForm />
-        </Suspense>
-      </section>
-    </div>
+    <PageLayout
+      back={{ href: "/people", label: "Users" }}
+      title="Add user"
+      description="They get an email with a link to set their password."
+      form
+    >
+      <Suspense fallback={<FormSkeleton />}>
+        <NewUserForm />
+      </Suspense>
+    </PageLayout>
   );
 }

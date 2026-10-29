@@ -10,7 +10,7 @@ import {
   SearchFilter,
 } from "@/components/filter-form";
 import { SelectField, submitClass } from "@/components/form";
-import { PageHeader } from "@/components/page-header";
+import { PageLayout } from "@/components/page-layout";
 import { SearchSelect } from "@/components/search-select";
 import { Pagination } from "@/components/pagination";
 import { EmptyState, ListSkeleton, LoadError } from "@/components/states";
@@ -37,7 +37,7 @@ async function AddProductLink() {
   const actor = await getCurrentUser();
   if (!actor.ok || !can(actor.data, "create", "Product")) return null;
   return (
-    <Link href={`${path}/new`} className={`${submitClass} w-auto`}>
+    <Link href={`${path}/new`} className={`${submitClass} sm:w-auto`}>
       <Plus aria-hidden="true" className="size-4" />
       Add product
     </Link>
@@ -161,15 +161,17 @@ export default function ProductsPage({
   searchParams,
 }: PageProps<"/inventory/products">) {
   return (
-    <div className="space-y-6">
-      <PageHeader title="Products">
+    <PageLayout
+      title="Products"
+      actions={
         <Suspense>
           <AddProductLink />
         </Suspense>
-      </PageHeader>
+      }
+    >
       <Suspense fallback={<ListSkeleton />}>
         <ProductList searchParams={searchParams} />
       </Suspense>
-    </div>
+    </PageLayout>
   );
 }

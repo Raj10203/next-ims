@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { FilterForm } from "@/components/filter-form";
 import { ListBody, ListTransition } from "@/components/list-transition";
-import { PageHeader } from "@/components/page-header";
+import { PageLayout } from "@/components/page-layout";
 import { Pagination } from "@/components/pagination";
 import { EmptyState, ListSkeleton, LoadError } from "@/components/states";
 import { getCurrentUser } from "@/lib/auth";
@@ -63,18 +63,18 @@ async function Stock({
 
 export default function StockPage({ searchParams }: PageProps<"/inventory">) {
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Stock"
-        description="Units of each product at each site. Open a row to see its items."
-      >
+    <PageLayout
+      title="Stock"
+      description="Units of each product at each site. Open a row to see its items."
+      actions={
         <Suspense>
           <AddStockLink />
         </Suspense>
-      </PageHeader>
+      }
+    >
       <Suspense fallback={<ListSkeleton />}>
         <Stock searchParams={searchParams} />
       </Suspense>
-    </div>
+    </PageLayout>
   );
 }

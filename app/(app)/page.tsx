@@ -11,7 +11,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { outlineClass } from "@/components/form";
-import { PageHeader } from "@/components/page-header";
+import { PageLayout } from "@/components/page-layout";
 import { Section } from "@/components/section";
 import { EmptyState, LoadError, TableSkeleton } from "@/components/states";
 import type { ApiResult } from "@/lib/api-result";
@@ -160,8 +160,7 @@ async function StockOverview() {
 
 export default function DashboardPage() {
   return (
-    <div className="space-y-6">
-      <PageHeader title="Dashboard" />
+    <PageLayout title="Dashboard">
       <Suspense
         fallback={
           <div
@@ -188,6 +187,6 @@ export default function DashboardPage() {
       <Suspense fallback={<TableSkeleton />}>
         <StockOverview />
       </Suspense>
-    </div>
+    </PageLayout>
   );
 }

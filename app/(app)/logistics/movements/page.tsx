@@ -4,7 +4,7 @@ import { DataList } from "@/components/data-list";
 import { FilterForm } from "@/components/filter-form";
 import { SelectField } from "@/components/form";
 import { ListBody, ListTransition } from "@/components/list-transition";
-import { PageHeader } from "@/components/page-header";
+import { PageLayout } from "@/components/page-layout";
 import { Pagination } from "@/components/pagination";
 import { SearchSelect } from "@/components/search-select";
 import { EmptyState, ListSkeleton, LoadError } from "@/components/states";
@@ -146,14 +146,13 @@ export default function MovementsPage({
   searchParams,
 }: PageProps<"/logistics/movements">) {
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Movements"
-        description="Every change of place, status or condition of an item, newest first."
-      />
+    <PageLayout
+      title="Movements"
+      description="Every change of place, status or condition of an item, newest first."
+    >
       <Suspense fallback={<ListSkeleton />}>
         <Movements searchParams={searchParams} />
       </Suspense>
-    </div>
+    </PageLayout>
   );
 }

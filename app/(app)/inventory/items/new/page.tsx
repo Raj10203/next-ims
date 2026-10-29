@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { BackLink } from "@/components/back-link";
 import { FormMessage } from "@/components/form";
-import { PageHeader } from "@/components/page-header";
+import { PageLayout } from "@/components/page-layout";
 import { FormSkeleton, LoadError } from "@/components/states";
 import { can, getCurrentUser } from "@/lib/auth";
 import { listProducts } from "@/lib/catalog";
@@ -47,17 +46,15 @@ export default function NewStockPage({
   searchParams,
 }: PageProps<"/inventory/items/new">) {
   return (
-    <div className="space-y-6">
-      <BackLink href="/inventory/items" label="Items" />
-      <PageHeader
-        title="Add stock"
-        description="New stock arrives at headquarters. Each unit gets its own code for its sticker."
-      />
-      <section className="max-w-3xl rounded-xl border border-border bg-surface p-5 sm:p-6">
-        <Suspense fallback={<FormSkeleton />}>
-          <NewStockForm searchParams={searchParams} />
-        </Suspense>
-      </section>
-    </div>
+    <PageLayout
+      back={{ href: "/inventory/items", label: "Items" }}
+      title="Add stock"
+      description="New stock arrives at headquarters. Each unit gets its own code for its sticker."
+      form
+    >
+      <Suspense fallback={<FormSkeleton />}>
+        <NewStockForm searchParams={searchParams} />
+      </Suspense>
+    </PageLayout>
   );
 }

@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { FilterForm } from "@/components/filter-form";
 import { ListBody, ListTransition } from "@/components/list-transition";
 import { SelectField, TextField } from "@/components/form";
-import { PageHeader } from "@/components/page-header";
+import { PageLayout } from "@/components/page-layout";
 import { Pagination } from "@/components/pagination";
 import { EmptyState, ListSkeleton, LoadError } from "@/components/states";
 import {
@@ -101,14 +101,13 @@ async function AuditList({
 
 export default function AuditPage({ searchParams }: PageProps<"/audit">) {
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Audit log"
-        description="Who changed what, and when. Newest first."
-      />
+    <PageLayout
+      title="Audit log"
+      description="Who changed what, and when. Newest first."
+    >
       <Suspense fallback={<ListSkeleton />}>
         <AuditList searchParams={searchParams} />
       </Suspense>
-    </div>
+    </PageLayout>
   );
 }

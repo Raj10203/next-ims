@@ -8,6 +8,7 @@ import {
   requestStatusTone,
 } from "@/lib/request-labels";
 import type { RequestRow } from "@/lib/stock-requests";
+import { RequestRoute } from "./request-route";
 
 export function RequestStatusBadge({ status }: { status: string }) {
   return (
@@ -36,7 +37,7 @@ export function RequestList({ rows }: { rows: RequestRow[] }) {
         title: (
           <span>
             <span className="font-mono">{requestCode(row.id)}</span> ·{" "}
-            {row.site.name}
+            {row.fromSite.name} → {row.site.name}
           </span>
         ),
         subtitle: contents(row),
@@ -55,7 +56,12 @@ export function RequestList({ rows }: { rows: RequestRow[] }) {
             <span className="font-mono">{requestCode(row.id)}</span>
           ),
         },
-        { header: "Site", cell: (row) => row.site.name },
+        {
+          header: "Route",
+          cell: (row) => (
+            <RequestRoute from={row.fromSite.name} to={row.site.name} />
+          ),
+        },
         { header: "Contents", cell: contents },
         { header: "Sent", cell: sent },
         {

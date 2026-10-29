@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { BackLink } from "@/components/back-link";
 import { FormMessage } from "@/components/form";
-import { PageHeader } from "@/components/page-header";
+import { PageLayout } from "@/components/page-layout";
 import { FormSkeleton, LoadError } from "@/components/states";
 import { can, getCurrentUser } from "@/lib/auth";
 import { pickedOption } from "@/lib/picked";
@@ -19,29 +18,33 @@ async function NewRequestForm({
   const productId = digits((await searchParams).productId);
   const actor = await getCurrentUser();
   if (!actor.ok) return <LoadError error={actor.error} />;
-  if (!can(actor.data, "create", "StockRequest")) {
+  const routing = can(actor.data, "route", "StockRequest");
+  if (!routing && !can(actor.data, "create", "StockRequest")) {
     return (
       <FormMessage message="Stock requests are raised by site employees, for their own site." />
     );
   }
-  return <RequestForm initial={await pickedOption("product", productId)} />;
+  return (
+    <RequestForm
+      routing={routing}
+      initial={await pickedOption("product", productId)}
+    />
+  );
 }
 
 export default function NewRequestPage({
   searchParams,
 }: PageProps<"/logistics/requests/new">) {
   return (
-    <div className="space-y-6">
-      <BackLink href="/logistics/requests" label="Stock requests" />
-      <PageHeader
-        title="New stock request"
-        description="Ask headquarters for stock for your site. Save it as a draft for your site to finish, or send it: HQ reviews it, then a manager approves it, and either may change the quantities."
-      />
-      <section className="max-w-3xl rounded-xl border border-border bg-surface p-5 sm:p-6">
-        <Suspense fallback={<FormSkeleton />}>
-          <NewRequestForm searchParams={searchParams} />
-        </Suspense>
-      </section>
-    </div>
+    <PageLayout
+      back={{ href: "/logistics/requests", label: "Stock requests" }}
+      title="New stock request"
+      description="A site asks headquarters for stock: HQ reviews it, then a manager approves it, and either may change the quantities. HQ staff send stock between any two sites, approved at once."
+      form
+    >
+      <Suspense fallback={<FormSkeleton />}>
+        <NewRequestForm searchParams={searchParams} />
+      </Suspense>
+    </PageLayout>
   );
 }

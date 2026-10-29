@@ -13,10 +13,17 @@ import {
 import type { PersonSummary, Site } from "@/lib/sites";
 import { requestStatuses, type RequestStatus } from "@/lib/request-labels";
 
+type RequestSite = Omit<Site, "incharge" | "createdBy">;
+
 export type StockRequest = {
   id: number;
+  // The receiving site, and the sending one (HQ unless HQ routed it).
   siteId: number;
-  site: Omit<Site, "incharge" | "createdBy">;
+  site: RequestSite;
+  fromSiteId: number;
+  fromSite: RequestSite;
+  // An employee of the receiving site who owns it there.
+  assignee: PersonSummary | null;
   status: RequestStatus;
   note: string | null;
   // "YYYY-MM-DD"
@@ -54,7 +61,13 @@ export type RequestLine = {
 // allowed comes from nest-ims, which applies the review chain's rules.
 export type RequestDetail = StockRequest & {
   lines: RequestLine[];
-  allowed: { decide: boolean; edit: boolean; cancel: boolean; close: boolean };
+  allowed: {
+    decide: boolean;
+    edit: boolean;
+    route: boolean;
+    cancel: boolean;
+    close: boolean;
+  };
 };
 
 export type RequestEvent = {
@@ -64,6 +77,12 @@ export type RequestEvent = {
   product: Pick<Product, "id" | "name" | "prefix"> | null;
   quantityBefore: number | null;
   quantityAfter: number | null;
+  // route_changed: the new route; assigned: the new assignee (null: none);
+  // requester_changed: the new requester.
+  fromSite: Pick<Site, "id" | "name"> | null;
+  toSite: Pick<Site, "id" | "name"> | null;
+  assignee: PersonSummary | null;
+  requester: PersonSummary | null;
   note: string | null;
   performedBy: PersonSummary | null;
   createdAt: string;
@@ -80,6 +99,7 @@ export type RequestComment = {
 export type RequestQuery = {
   status?: string;
   siteId?: string;
+  fromSiteId?: string;
   mine?: string;
   awaitingMe?: string;
   page?: string;
@@ -89,6 +109,7 @@ export function parseRequestQuery(params: SearchParams): RequestQuery {
   return {
     status: oneOf(params.status, requestStatuses),
     siteId: digits(params.siteId),
+    fromSiteId: digits(params.fromSiteId),
     mine: oneOf(params.mine, booleans),
     page: digits(params.page),
   };

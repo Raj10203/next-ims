@@ -42,6 +42,13 @@ export const pickerSources = {
     label: (site: Named & { code?: string }) =>
       site.code ? `${site.name} (${site.code})` : site.name,
   },
+  // Active employees of one site (params.siteId), for HQ's routing:
+  // nest-ims answers this outside HQ's own users scope, as summaries.
+  assignee: {
+    path: "/stock-requests/assignees",
+    noun: "employees",
+    label: (user: Person) => personName(user),
+  },
   // A related user is only a summary without the email (depth one in nest-ims).
   user: {
     path: "/users",

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { outlineClass } from "@/components/form";
 import { ListBody, ListTransition } from "@/components/list-transition";
-import { PageHeader } from "@/components/page-header";
+import { PageLayout } from "@/components/page-layout";
 import { Pagination } from "@/components/pagination";
 import { EmptyState, ListSkeleton, LoadError } from "@/components/states";
 import { can, getCurrentUser } from "@/lib/auth";
@@ -63,15 +63,17 @@ export default function ReviewQueuePage({
   searchParams,
 }: PageProps<"/logistics">) {
   return (
-    <div className="space-y-6">
-      <PageHeader title="To review">
+    <PageLayout
+      title="To review"
+      actions={
         <Link href="/logistics/requests" className={outlineClass}>
           All requests
         </Link>
-      </PageHeader>
+      }
+    >
       <Suspense fallback={<ListSkeleton filters={false} />}>
         <Queue searchParams={searchParams} />
       </Suspense>
-    </div>
+    </PageLayout>
   );
 }

@@ -3,11 +3,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { Avatar } from "@/components/avatar";
-import { BackLink } from "@/components/back-link";
 import { DataList } from "@/components/data-list";
 import { DeleteButton } from "@/components/delete-button";
 import { outlineClass } from "@/components/form";
 import { PageHeader } from "@/components/page-header";
+import { PageLayout } from "@/components/page-layout";
 import { DetailList, Section } from "@/components/section";
 import {
   DetailSkeleton,
@@ -37,8 +37,9 @@ import { RequestStatusBadge } from "../../_components/request-list";
 import { CancelRequest } from "../_components/cancel-request";
 import { CommentForm, ReplyButton } from "../_components/comment-form";
 import { DecisionForm } from "../_components/decision-form";
+import { RouteForm } from "../_components/route-form";
 import { RequestForm } from "../_components/request-form";
-import { RequestRoute } from "../_components/request-route";
+import { RequestRoute } from "../../_components/request-route";
 
 export const metadata: Metadata = { title: "Stock request" };
 
@@ -62,6 +63,23 @@ function steps(request: RequestDetail): Step[] {
     closed && request.closedAt
       ? `${request.status === "rejected" ? "Rejected" : "Cancelled"} by ${byWhom(request.closedBy, request.closedAt)}`
       : undefined;
+  // HQ's own requests are approved as they are raised, with no review.
+  const routed = !!request.approvedAt && !request.reviewedAt;
+  if (routed) {
+    return [
+      {
+        label: "Raised by HQ",
+        state: "done",
+        detail: byWhom(request.requestedBy, request.requestedAt!),
+      },
+      { label: "HQ review", state: "done", detail: "Not needed" },
+      {
+        label: "Approved",
+        state: "done",
+        detail: byWhom(request.approvedBy, request.approvedAt!),
+      },
+    ];
+  }
   return [
     request.requestedAt
       ? {
@@ -220,7 +238,7 @@ async function RequestView({
     <div className="space-y-6">
       <PageHeader
         title={requestCode(request.id)}
-        description={`${request.site.name} · ${request.site.code}`}
+        description={`${request.fromSite.name} → ${request.site.name}`}
       >
         <span className="flex flex-wrap items-center gap-3">
           <RequestStatusBadge status={request.status} />
@@ -244,7 +262,18 @@ async function RequestView({
       <Section id="overview" title="Overview">
         <DetailList
           rows={[
-            ["Route", <RequestRoute key="route" to={request.site.name} />],
+            [
+              "Route",
+              <RequestRoute
+                key="route"
+                from={request.fromSite.name}
+                to={request.site.name}
+              />,
+            ],
+            [
+              "Assignee",
+              request.assignee ? fullName(request.assignee) : "Nobody",
+            ],
             [
               "Requester",
               request.requestedBy
@@ -271,6 +300,25 @@ async function RequestView({
           </div>
         )}
       </Section>
+
+      {request.allowed.route && (
+        <Section
+          id="route"
+          title="Route and assignee"
+          description="Until the stock is packed, HQ can send it from another site, to another site, or give it to another employee there."
+        >
+          <RouteForm
+            requestId={request.id}
+            initial={{
+              from: toPickerOption("site", request.fromSite),
+              to: toPickerOption("site", request.site),
+              assignee: request.assignee
+                ? toPickerOption("assignee", request.assignee)
+                : null,
+            }}
+          />
+        </Section>
+      )}
 
       <Section
         id="products"
@@ -418,6 +466,15 @@ async function RequestView({
                   {requestEventLabel(event.action)}
                   {event.product &&
                     `: ${event.product.name} (${event.product.prefix}), ${event.quantityBefore} → ${event.quantityAfter}`}
+                  {event.action === "route_changed" &&
+                    event.fromSite &&
+                    event.toSite &&
+                    `: ${event.fromSite.name} → ${event.toSite.name}`}
+                  {event.action === "assigned" &&
+                    `: ${event.assignee ? fullName(event.assignee) : "nobody"}`}
+                  {event.action === "requester_changed" &&
+                    event.requester &&
+                    ` to ${fullName(event.requester)}`}
                 </p>
                 <p className="text-muted">{formatDateTime(event.createdAt)}</p>
                 {event.note && (
@@ -436,11 +493,10 @@ export default function RequestPage({
   params,
 }: PageProps<"/logistics/requests/[id]">) {
   return (
-    <div className="space-y-6">
-      <BackLink href="/logistics/requests" label="Stock requests" />
+    <PageLayout back={{ href: "/logistics/requests", label: "Stock requests" }}>
       <Suspense fallback={<DetailSkeleton />}>
         <RequestView params={params} />
       </Suspense>
-    </div>
+    </PageLayout>
   );
 }

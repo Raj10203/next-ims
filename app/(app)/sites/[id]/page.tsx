@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { BackLink } from "@/components/back-link";
 import { DeleteButton } from "@/components/delete-button";
 import { outlineClass } from "@/components/form";
 import { PageHeader } from "@/components/page-header";
+import { PageLayout } from "@/components/page-layout";
 import { DetailList, Section } from "@/components/section";
 import { DetailSkeleton, LoadError, NotFoundState } from "@/components/states";
 import { ActiveBadge, StatusBadge } from "@/components/status-badge";
@@ -131,11 +131,10 @@ async function SiteDetail({ params }: { params: Promise<{ id: string }> }) {
 
 export default function SitePage({ params }: PageProps<"/sites/[id]">) {
   return (
-    <div className="space-y-6">
-      <BackLink href="/sites" label="Sites" />
+    <PageLayout back={{ href: "/sites", label: "Sites" }}>
       <Suspense fallback={<DetailSkeleton />}>
         <SiteDetail params={params} />
       </Suspense>
-    </div>
+    </PageLayout>
   );
 }

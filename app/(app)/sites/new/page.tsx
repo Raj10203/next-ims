@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { BackLink } from "@/components/back-link";
 import { FormMessage } from "@/components/form";
-import { PageHeader } from "@/components/page-header";
+import { PageLayout } from "@/components/page-layout";
 import { FormSkeleton, LoadError } from "@/components/states";
 import { can, getCurrentUser } from "@/lib/auth";
 import { inchargePicker } from "../_components/incharge-options";
@@ -21,14 +20,10 @@ async function NewSiteForm() {
 
 export default function NewSitePage() {
   return (
-    <div className="space-y-6">
-      <BackLink href="/sites" label="Sites" />
-      <PageHeader title="Add site" />
-      <section className="max-w-3xl rounded-xl border border-border bg-surface p-5 sm:p-6">
-        <Suspense fallback={<FormSkeleton />}>
-          <NewSiteForm />
-        </Suspense>
-      </section>
-    </div>
+    <PageLayout back={{ href: "/sites", label: "Sites" }} title="Add site" form>
+      <Suspense fallback={<FormSkeleton />}>
+        <NewSiteForm />
+      </Suspense>
+    </PageLayout>
   );
 }

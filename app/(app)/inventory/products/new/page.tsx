@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { BackLink } from "@/components/back-link";
 import { FormMessage } from "@/components/form";
-import { PageHeader } from "@/components/page-header";
+import { PageLayout } from "@/components/page-layout";
 import { FormSkeleton, LoadError } from "@/components/states";
 import { can, getCurrentUser } from "@/lib/auth";
 import { getProductOptions, listCategories } from "@/lib/catalog";
@@ -36,17 +35,15 @@ async function NewProductForm() {
 
 export default function NewProductPage() {
   return (
-    <div className="space-y-6">
-      <BackLink href="/inventory/products" label="Products" />
-      <PageHeader
-        title="Add product"
-        description="What can be stocked. Items, each with its own code, are added to it afterwards."
-      />
-      <section className="max-w-3xl rounded-xl border border-border bg-surface p-5 sm:p-6">
-        <Suspense fallback={<FormSkeleton />}>
-          <NewProductForm />
-        </Suspense>
-      </section>
-    </div>
+    <PageLayout
+      back={{ href: "/inventory/products", label: "Products" }}
+      title="Add product"
+      description="What can be stocked. Items, each with its own code, are added to it afterwards."
+      form
+    >
+      <Suspense fallback={<FormSkeleton />}>
+        <NewProductForm />
+      </Suspense>
+    </PageLayout>
   );
 }

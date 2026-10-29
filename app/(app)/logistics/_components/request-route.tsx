@@ -1,12 +1,12 @@
 import { ArrowRight } from "lucide-react";
 
-// Fixed, not a choice: nest-ims always sends a request from headquarters to
-// the requester's own site.
-export function RequestRoute({ to }: { to: string }) {
+// Where the stock leaves from and where it goes.
+export function RequestRoute({ from, to }: { from: string; to: string }) {
   return (
     <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
       <span>
-        <span className="sr-only">From </span>Headquarters
+        <span className="sr-only">From </span>
+        {from}
       </span>
       <ArrowRight aria-hidden="true" className="size-4 text-muted" />
       <span>

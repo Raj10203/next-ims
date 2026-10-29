@@ -71,7 +71,7 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
 
         <main
           id="main"
-          className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8"
+          className="mx-auto w-full max-w-screen-2xl flex-1 px-4 py-6 sm:px-6 lg:py-8"
         >
           {children}
         </main>

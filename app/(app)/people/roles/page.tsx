@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { outlineClass } from "@/components/form";
-import { PageHeader } from "@/components/page-header";
+import { PageLayout } from "@/components/page-layout";
 import { Section } from "@/components/section";
 import { EmptyState, ListSkeleton, LoadError } from "@/components/states";
 import { can, getCurrentUser, roleLabel } from "@/lib/auth";
@@ -20,15 +20,18 @@ export const metadata: Metadata = { title: "Roles" };
 const summaries: Record<string, string> = {
   super_admin: "Everything, including creating admins.",
   admin:
-    "All users below admin, sites, the catalog, feature roles, stock and stock requests (read) and the audit log.",
+    "All users below admin, sites, the catalog, feature roles, stock, shipments and stock requests (read), and the audit log; routes stock requests between any two sites.",
   manager:
-    "Users they created, sites, the catalog, feature roles and stock (read); gives the final approval of stock requests.",
+    "Users they created, sites, the catalog, feature roles and stock (read); gives the final approval of stock requests, closes them, and routes them between any two sites.",
   site_incharge:
-    "Users they created; reads the catalog; raises stock requests for their site.",
-  site_technician: "Reads their own account and the catalog.",
+    "Users they created; reads the catalog; asks HQ for stock for their site and receives its packages.",
+  site_technician:
+    "Reads their own account and the catalog; asks HQ for stock for their site and receives its packages.",
   stock_manager: "Adds, edits and deletes stock items, whatever the role.",
   stock_request_reviewer:
-    "Reviews every site's stock requests at HQ, before a manager approves them.",
+    "Reviews every site's stock requests at HQ before a manager approves them, and routes requests between any two sites.",
+  shipment_manager:
+    "Packs approved requests into shipments at their sending site and dispatches them.",
 };
 
 function RoleList({
@@ -114,11 +117,10 @@ async function Roles() {
 
 export default function RolesPage() {
   return (
-    <div className="space-y-6">
-      <PageHeader title="Roles" />
+    <PageLayout title="Roles">
       <Suspense fallback={<ListSkeleton filters={false} />}>
         <Roles />
       </Suspense>
-    </div>
+    </PageLayout>
   );
 }
